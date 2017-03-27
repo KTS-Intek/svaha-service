@@ -41,3 +41,6 @@ HEADERS += \
     cerber4matildasocket.h \
     settloader4svaha.h \
     defcerberus.h
+
+DISTFILES += \
+    LICENSE
