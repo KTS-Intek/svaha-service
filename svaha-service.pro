@@ -8,15 +8,14 @@ CONFIG -= app_bundle
 
 
 linux-rasp-pi-g++:{
+    DEFINES += ISRASPI=1
     target.path = /home/lazar/bin
-    INSTALLS += target
 }
 
 linux-beagleboard-g++:{
     target.path = /home/root
-    INSTALLS += target
 }
-TARGET = svaha-service
+TARGET = svaha-service-bbb
 
 INSTALLS += target
 
@@ -29,7 +28,12 @@ SOURCES += main.cpp \
     socketprosto.cpp \
     cerber4matilda.cpp \
     cerber4matildasocket.cpp \
-    settloader4svaha.cpp
+    settloader4svaha.cpp \
+    readjsonhelper.cpp \
+    backupmanager.cpp \
+    matildasynchelper.cpp \
+    matildaprotocolhelper.cpp \
+    checklocalfilesha1.cpp
 
 HEADERS += \
     svahatrymachzjednannya.h \
@@ -40,7 +44,12 @@ HEADERS += \
     ../matilda-bbb/moji_defy.h \
     cerber4matildasocket.h \
     settloader4svaha.h \
-    defcerberus.h
+    defcerberus.h \
+    readjsonhelper.h \
+    backupmanager.h \
+    matildasynchelper.h \
+    matildaprotocolhelper.h \
+    checklocalfilesha1.h
 
 DISTFILES += \
     LICENSE

@@ -41,6 +41,7 @@
 #define SETT_CERBERUS_PORT                  10
 
 typedef QHash<QString,QString> QStringHash;
+typedef QHash<QString, QStringHash> QStringHashHash;
 
 class SettLoader4svaha : public QObject
 {

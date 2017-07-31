@@ -87,6 +87,7 @@ void SvahaDlaDvoh::onThrdStarted()
 {
     SettLoader4svaha sLoader;
     QTimer *zombieTmr = new QTimer(this);
+    zombieTmr->setObjectName("zombieTmr");
     zombieTmr->setInterval(sLoader.loadOneSett(SETT_ZOMBIE_MSEC).toInt() );//15 * 60 * 1000);
     zombieTmr->setSingleShot(true);
     connect(this, SIGNAL(data2Remote(QByteArray)), zombieTmr, SLOT(start()) );
@@ -95,8 +96,9 @@ void SvahaDlaDvoh::onThrdStarted()
     zombieTmr->start();
 
     QTimer *zombieTmr2 = new QTimer(this);
-    zombieTmr->setInterval(sLoader.loadOneSett(SETT_ZOMBIE_MSEC).toInt() );//15 * 60 * 1000);
-    zombieTmr->setSingleShot(true);
+    zombieTmr->setObjectName("zombieTmr2");
+    zombieTmr2->setInterval(sLoader.loadOneSett(SETT_ZOMBIE_MSEC).toInt() );//15 * 60 * 1000);
+    zombieTmr2->setSingleShot(true);
     connect(this, SIGNAL(data2Remote2(QByteArray)), zombieTmr2, SLOT(start()) );
     connect(zombieTmr2, SIGNAL(timeout()), this, SLOT(onZombie()) );
     connect(this, SIGNAL(stopAllNow()), zombieTmr2, SLOT(stop()) );
@@ -116,7 +118,8 @@ void SvahaDlaDvoh::onOneDisconn()
 
 void SvahaDlaDvoh::onZombie()
 {
-    qDebug() << "SvahaDlaDvoh onZombie ";
+
+    qDebug() << "SvahaDlaDvoh onZombie " << QObject::sender()->objectName();
     connCounter = -1;
     close();
     emit stopAllNow();

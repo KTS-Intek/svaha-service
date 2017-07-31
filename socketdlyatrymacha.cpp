@@ -31,17 +31,16 @@
 
 #include "../matilda-bbb/moji_defy.h"
 #include "settloader4svaha.h"
+#include "readjsonhelper.h"
 
 #define REM_DEV_MATILDA_UNKNWN  -1
 #define REM_DEV_MATILDA_DEV     0
 #define REM_DEV_MATILDA_CONF    1
 
 //----------------------------------------------------------------------------------------------------------------------------
-SocketDlyaTrymacha::SocketDlyaTrymacha(QObject *parent) : QTcpSocket(parent)
+SocketDlyaTrymacha::SocketDlyaTrymacha(const bool &verbouseMode, QObject *parent) : QTcpSocket(parent)
 {    
-
-
-
+    this->verbouseMode = verbouseMode;
     timeZombie.start();
     allowCompress = false;
     lastHashSumm = 1;
@@ -71,14 +70,14 @@ void SocketDlyaTrymacha::onThrdStarted()
 
     connect(killTmr, SIGNAL(timeout()) , this, SLOT(onDisconn()) );//максимальна тривалість 24 години
     connect(this, SIGNAL(disconnected()), killTmr, SLOT(stop()) );
+
+
 }
 //----------------------------------------------------------------------------------------------------------------------------
 void SocketDlyaTrymacha::startConn(QString serverIp, int serverPort, QString objId, QString objMac, QString objSocketId, QString rIp)
 {
 
     if(isMatildaDev == REM_DEV_MATILDA_DEV){
-        qDebug() << "startConn 111" << peerAddress() << peerPort() << objId << objMac << objSocketId;
-        qDebug() << "startConn 222" <<  mIden << mMac << myRemoteIpAndDescr;
         if(objId == mIden && mMac.contains(objMac) && objSocketId == myRemoteIpAndDescr && !serverIp.isEmpty() && serverPort > 1000 && serverPort < 65535){
             QJsonObject jObj;
             jObj.insert("sIp", serverIp);
@@ -136,8 +135,8 @@ void SocketDlyaTrymacha::checkThisMac(QString mac)
         return;
 
     if(isMatildaDev == REM_DEV_MATILDA_DEV && mMac.contains(mac.toUpper())){
-        emit addMyId2Hash(mIden,QStringList() << mac, myRemoteIpAndDescr);
-        qDebug() << "checkThisMac " << mac << mIden << myRemoteIpAndDescr;
+//        emit addMyId2Hash(mIden, QStringList() << mac, myRemoteIpAndDescr);
+        onDisconn();
     }
 }
 //----------------------------------------------------------------------------------------------------------------------------
@@ -150,42 +149,9 @@ void SocketDlyaTrymacha::killClientNow(QString id, bool byDevId)
 //----------------------------------------------------------------------------------------------------------------------------
 void SocketDlyaTrymacha::mReadyRead()
 {
-    int timeOutG = 45555, timeOut = 300;
-    QByteArray readarr = readAll();
-    QTime time;
-    time.start();
-    int razivDuzkaL = readarr.count('{'), razivDuzkaR = readarr.count('}');
-
-    QTime timeG;
-    timeG.start();
-
-    while( razivDuzkaR < razivDuzkaL && readarr.size() < MAX_PACKET_LEN && time.elapsed() < timeOut && timeG.elapsed() < timeOutG && razivDuzkaL > 0){
-        if(waitForReadyRead(timeOut)){
-            time.restart();
-            readarr.append(readAll());
-            razivDuzkaL = readarr.count('{');
-            razivDuzkaR = readarr.count('}');
-//            qDebug() << "razivDuzkaL razivDuzkaR " << razivDuzkaL << razivDuzkaR;
-        }
-    }
-
-    if(razivDuzkaL != razivDuzkaR || razivDuzkaL < 1){
-        emit showMess("corrupted data.");
-        qDebug()<< "readServer:"<< readarr;
-        return ;
-    }else{
-        int duzkaIndx = readarr.indexOf("}");
-        int lastIndx = 0;
-
-        int len = readarr.length();
-        while(duzkaIndx > 1 && lastIndx < len){
-            decodeReadDataJSON(readarr.mid(lastIndx, duzkaIndx + 1));
-            duzkaIndx = readarr.indexOf("}", lastIndx);
-            lastIndx = duzkaIndx + 1;
-
-        }
-    }
-
+    disconnect(this, SIGNAL(readyRead()), this, SLOT(mReadyRead()) );
+    mReadyReadF();
+    connect(this, SIGNAL(readyRead()), this, SLOT(mReadyRead()) );
 }
 
 //----------------------------------------------------------------------------------------------------------------------------
@@ -237,8 +203,8 @@ void SocketDlyaTrymacha::mWrite2SocketJSON(QJsonObject jObj, const quint16 s_com
             writeArr = jDoc2DST.toJson(QJsonDocument::Compact);
             writeArr.chop(1);// remove }
         }
-
-        qDebug() << "writeArr1 comprs " << peerAddress() << peerPort() << writeArr;
+        if(verbouseMode)
+            qDebug() << "writeArr1 comprs " << peerAddress() << peerPort() << writeArr;
         switch(lastHashSumm){
         case 0: { writeArr.append(", \"Md4\":\""      + QCryptographicHash::hash( writeArr + ", \"Md4\":\"0\"}"     , QCryptographicHash::Md4     ).toBase64() + "\"}" ); break;}
         case 2: { writeArr.append(", \"Sha1\":\""     + QCryptographicHash::hash( writeArr + ", \"Sha1\":\"0\"}"    , QCryptographicHash::Sha1    ).toBase64() + "\"}" ); break;}
@@ -259,7 +225,7 @@ void SocketDlyaTrymacha::mWrite2SocketJSON(QJsonObject jObj, const quint16 s_com
 //    qint64 len =
     write(writeArr);
 
-//    qDebug() << "write " << peerAddress() << peerPort() << len << writeArr;
+    qDebug() << "write " << peerAddress() << peerPort() <<  writeArr.left(44);
 //    qDebug() << "write SocketDlyaTrymacha " << QTime::currentTime().toString("hh:mm:ss.zzz");
 
 
@@ -280,9 +246,74 @@ void SocketDlyaTrymacha::onDisconn()
         emit removeMyId2Hash(mMac);
     }
 
-    qDebug() << "onDisconn SocketDlyaTrymacha " << myRemoteIpAndDescr << mIden << mMac;
+    if(verbouseMode)
+        qDebug() << "onDisconn SocketDlyaTrymacha " << myRemoteIpAndDescr << mIden << mMac;
     deleteLater();
 
+}
+//----------------------------------------------------------------------------------------------------------------------------
+void SocketDlyaTrymacha::mReadyReadF()
+{
+    int timeOutG = 45555, timeOut = 300;
+    QByteArray readarr = readAll();
+    QTime time;
+    time.start();
+
+
+    QTime timeG;
+    timeG.start();
+
+    int razivDuzkaL = 0;
+    int razivDuzkaR = 0;
+    bool wait4lapky = false;
+    ReadJsonHelper::getRightLeftDuzka(razivDuzkaR, razivDuzkaL, wait4lapky, readarr);
+
+    for( ; readarr.size() < MAX_PACKET_LEN && (readarr.isEmpty() || time.elapsed() < timeOut) && timeG.elapsed() < timeOutG; ){
+        if(waitForReadyRead(10)){
+            QByteArray arr = readAll();
+            ReadJsonHelper::getRightLeftDuzka(razivDuzkaR, razivDuzkaL, wait4lapky, arr);
+            readarr.append(arr);
+            qDebug() << "razivDuzkaL razivDuzkaR " << razivDuzkaL << razivDuzkaR;
+            time.restart();
+        }
+
+        if(razivDuzkaL > 0 && razivDuzkaR > 0){
+            if(razivDuzkaR == razivDuzkaL)
+                break;
+        }
+    }
+
+    if(razivDuzkaL != razivDuzkaR || razivDuzkaL < 1){
+        emit showMess("corrupted data.");
+        return ;
+    }else{
+
+        int rIndx = 0, lIndx = 0;
+        rIndx = ReadJsonHelper::indxOfRightDuzka(rIndx, readarr);
+        rIndx++;
+        for(int i = 0, iMax = 100; i < iMax; i++){
+
+            decodeReadDataJSON(readarr.mid(lIndx, rIndx - lIndx ));
+            lIndx = rIndx;
+            rIndx = ReadJsonHelper::indxOfRightDuzka(rIndx, readarr);
+
+            if(rIndx < 1)
+                break;
+            rIndx++;
+        }
+
+
+//        int duzkaIndx = readarr.indexOf("}");
+//        int lastIndx = 0;
+
+//        int len = readarr.length();
+//        while(duzkaIndx > 1 && lastIndx < len){
+//            decodeReadDataJSON(readarr.mid(lastIndx, duzkaIndx + 1));
+//            duzkaIndx = readarr.indexOf("}", lastIndx);
+//            lastIndx = duzkaIndx + 1;
+
+//        }
+    }
 }
 
 //----------------------------------------------------------------------------------------------------------------------------
@@ -292,7 +323,7 @@ void SocketDlyaTrymacha::decodeReadDataJSON(const QByteArray &readArr)
     QJsonParseError jErr;
     QJsonDocument jDoc = QJsonDocument::fromJson( readArr, &jErr);
 
-    QVariantHash hash = map2hash(jDoc.object().toVariantMap());
+    QVariantHash hash = jDoc.object().toVariantHash();
 
     quint16 command = hash.take("cmd").toUInt();
 
@@ -301,23 +332,25 @@ void SocketDlyaTrymacha::decodeReadDataJSON(const QByteArray &readArr)
         if(messHshIsValid(jDoc.object(), readArr)){
 
             jDoc = QJsonDocument::fromJson( qUncompress( QByteArray::fromBase64( hash.value("zlib").toByteArray() )  ), &jErr);//qUncompress( <quint32 not compressed data len><comprssed data> )
-            hash = map2hash(jDoc.object().toVariantMap());
-
+            hash = jDoc.object().toVariantHash();
             command = hash.take("cmd").toUInt();
 
         }else{
-            qDebug() << tr("Received uncorrect request");
+            if(verbouseMode)
+                qDebug() << tr("Received uncorrect request");
             emit showMess(tr("Received uncorrect request"));
             return;
         }
 
     }
 
-//    qDebug() << "read:" << socketDescriptor() << peerAddress() << peerPort() << readArr;
+    if(verbouseMode)
+    qDebug() << "read:" << socketDescriptor() << peerAddress() << peerPort() << readArr ;
 
 
     if(!messHshIsValid(jDoc.object(), readArr)){
-        qDebug() << tr("Received uncorrect request");
+        if(verbouseMode)
+            qDebug() << tr("Received uncorrect request");
         emit showMess(tr("Received uncorrect request"));
         return;
     }
@@ -328,22 +361,35 @@ void SocketDlyaTrymacha::decodeReadDataJSON(const QByteArray &readArr)
         if(isMatildaDev != REM_DEV_MATILDA_UNKNWN){
             mWrite2SocketJSON(errCodeLastOperationJson(command, ERR_INCORRECT_REQUEST), COMMAND_ERROR_CODE);
             isMatildaDev = REM_DEV_MATILDA_UNKNWN;
+            QTimer::singleShot(5555, this, SLOT(onDisconn()) );
             break;
         }
         isMatildaDev = REM_DEV_MATILDA_DEV;
         mIden = hash.value("memo").toString();
-        mMac = hash.value("mac").toString().toUpper().split("|", QString::SkipEmptyParts);
+        mMac.clear();
+        QStringList macList = hash.value("mac").toString().toUpper().split("|", QString::SkipEmptyParts);
+
+        for(int i = 0, iMax = macList.size(), j = 0; i < iMax && j < 10; i++){
+            if(macList.at(i).startsWith("00:00:00:00:") || !macList.at(i).contains(":") || mMac.contains(macList.at(i)))
+                continue;
+            mMac.append(macList.at(i));
+            j++;
+        }
+
         if(mMac.isEmpty() || hash.value("mac").toString().remove("|").isEmpty()){
+            if(verbouseMode)
+                qDebug() << "bad mac " << socketDescriptor() << hash;
             onDisconn();
             return;
         }
         if(hash.value("cmprssn").toString().contains("zlib"))
             allowCompress = true;
+
         myRemoteIpAndDescr = this->peerAddress().toString();
         if(myRemoteIpAndDescr.left(7).toUpper() == "::FFFF:")
             myRemoteIpAndDescr = myRemoteIpAndDescr.mid(7);
         myRemoteIpAndDescr.append(QString(":%1").arg(socketDescriptor()));
-        emit addMyId2Hash(mIden,mMac,myRemoteIpAndDescr);
+        emit addMyId2Hash(mIden, mMac, myRemoteIpAndDescr, getObjIfo(hash.value("ao").toMap(), true));
         mWrite2SocketJSON(errCodeLastOperationJson(command, ERR_NO_ERROR), COMMAND_ERROR_CODE);//реєстрацію завершено упішно
         break;}
 
@@ -360,7 +406,8 @@ void SocketDlyaTrymacha::decodeReadDataJSON(const QByteArray &readArr)
         bool isIDMode = hash.value("useId", false).toBool();
         QString str = hash.value("remote", "").toString();
 
-        qDebug() << "COMMAND_CONNECT_ME_2_THIS_ID_OR_MAC " << isIDMode << str;
+        if(verbouseMode)
+            qDebug() << "COMMAND_CONNECT_ME_2_THIS_ID_OR_MAC " << isIDMode << str;
         if(str.isEmpty()){
             mWrite2SocketJSON(errCodeLastOperationJson(command, ERR_INCORRECT_REQUEST), COMMAND_ERROR_CODE);
         }else{
@@ -370,7 +417,12 @@ void SocketDlyaTrymacha::decodeReadDataJSON(const QByteArray &readArr)
 
     case COMMAND_I_AM_A_ZOMBIE:{
         if(isMatildaDev == REM_DEV_MATILDA_DEV || isMatildaDev == REM_DEV_MATILDA_CONF){
-            qDebug() << "zombie killer" << peerAddress() << mIden << timeZombie.elapsed() / 1000;
+            if(verbouseMode)
+                qDebug() << "zombie killer" << peerAddress() << mIden << timeZombie.elapsed() / 1000;
+            if(hash.contains("ao"))//періодично мені відправляються дані по пристрою
+                emit infoAboutObj(myRemoteIpAndDescr, getObjIfo(hash.value("ao").toMap(), false));
+
+
         }else{
             onDisconn();
         }
@@ -405,12 +457,12 @@ bool SocketDlyaTrymacha::messHshIsValid(const QJsonObject &jObj, QByteArray read
         if(jObj.contains(lh.at(i))){
             hshIndx = i;
             hshName = lh.at(i);
-//            qDebug() << "hash is " << hshName;
         }
     }
 
     if(hshIndx < 0){
-        qDebug() << "if(hshIndx < 0 " << hshIndx;
+        if(verbouseMode)
+        qDebug() << "if(hshIndx < 0 " << hshIndx << readArr;
         return false;
     }else{
         lastHashSumm = hshIndx;
@@ -418,17 +470,9 @@ bool SocketDlyaTrymacha::messHshIsValid(const QJsonObject &jObj, QByteArray read
         QByteArray hshBase64;
         if(startIndx > 0){
             startIndx += hshName.length() + 4;
-//            qDebug() << "hshName " << hshName << startIndx << readArr.mid(startIndx);
-
             int endIndx = readArr.indexOf("\"", startIndx + 1);
-//            qDebug() << "endIndx " << endIndx << readArr.mid(endIndx);
-
             hshBase64 = readArr.mid(startIndx , endIndx - startIndx);
-//            qDebug() << hshBase64;
             readArr = readArr.left(startIndx ) + "0" + readArr.mid(endIndx);
-//            qDebug() << readArr;
-
-//            qDebug() << QCryptographicHash::hash("helloworld", QCryptographicHash::Md5).toHex();
         }
         if(hshBase64.isEmpty())
             return false;
@@ -439,10 +483,58 @@ bool SocketDlyaTrymacha::messHshIsValid(const QJsonObject &jObj, QByteArray read
         if(myHash == hshBase64){
             return true;
         }else{
-            qDebug() << "if(myHash != hshBase64 " << myHash.toBase64() << hshBase64.toBase64();
+            if(verbouseMode)
+                qDebug() << "if(myHash != hshBase64 " << myHash.toBase64() << hshBase64.toBase64();
             return false;
         }
     }
+}
+//----------------------------------------------------------------------------------------------------------------------------
+QStringHash SocketDlyaTrymacha::getObjIfo(const QVariantMap &h, const bool &addVersion)
+{
+    /*(if exists)
+     *
+     * SN <serial number>
+     * vrsn
+     * DEV
+     * app
+     *
+     * //gsm section
+     * IMEI
+     * IMSI
+     * CID
+     * BAND
+     * RSSI
+     * ATI
+     * RCSP
+     * Ec/No
+     *
+     * //zigbee
+     * ZCH
+     * ZID
+     * ZRSSI
+     * LQI
+     * VR
+     * HV
+     * Type
+     * ZEUI64
+     *
+*/
+
+    QStringHash hashAboutObj;
+    if(!h.isEmpty()){
+        QStringList lk = QString("SN vrsn DEV app IMEI IMSI CellID LAC RSSI RCSP ATI Ec/No ZCH ZID ZRSSI LQI VR HV Type ZEUI64").split(" ");
+        for(int i = 0, iMax = lk.size(); i < iMax; i++){
+            if(h.contains(lk.at(i)) && !h.value(lk.at(i)).toString().isEmpty())
+                hashAboutObj.insert(lk.at(i), h.value(lk.at(i)).toString());
+        }
+    }else{
+        if(addVersion)
+            hashAboutObj.insert("vrsn", QString::number(MATILDA_PROTOCOL_VERSION_V1));
+    }
+    if(verbouseMode)
+        qDebug() << "hashAboutObj " << hashAboutObj << h;
+    return hashAboutObj;
 }
 //----------------------------------------------------------------------------------------------------------------------------
 QJsonArray SocketDlyaTrymacha::arrFromList(const QStringList &list)

@@ -55,7 +55,7 @@ void Cerber4matilda::incomingConnection(qintptr handle)
     connect(socket, SIGNAL(getHashRemoteIdAndDevId(QString, bool)), this, SIGNAL(getHashRemoteIdAndDevId(QString, bool)) );
     connect(socket, SIGNAL(removeCerverID(QString)), this, SIGNAL(removeCerverID(QString)) );
     connect(socket, SIGNAL(killClientNow(QString,bool)), this, SIGNAL(killClientNow(QString,bool)) );
-    connect(this, SIGNAL(remoteIdAndDevId(QStringHash,QStringHash,QStringHash,QString)), socket, SLOT(remoteIdAndDevId(QStringHash,QStringHash,QStringHash,QString)) );
+    connect(this, SIGNAL(remoteIdAndDevId(QStringHash,QStringHash,QStringHash,QString,QStringHashHash)), socket, SLOT(remoteIdAndDevId(QStringHash,QStringHash,QStringHash,QString,QStringHashHash)) );
 
 
     QVariantHash hash;

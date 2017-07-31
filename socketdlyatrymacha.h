@@ -29,6 +29,7 @@
 #include <QTime>
 #include <QTimer>
 
+#include "settloader4svaha.h"
 /*
  * Є два режими
  * 1. Від присторю опитування - при з’єданні очікує на отримання ІД та МАК адреси
@@ -43,17 +44,18 @@ class SocketDlyaTrymacha : public QTcpSocket
 {
     Q_OBJECT
 public:
-    explicit SocketDlyaTrymacha(QObject *parent = 0);
+    explicit SocketDlyaTrymacha(const bool &verbouseMode, QObject *parent = 0);
 
 signals:
-    void addMyId2Hash(QString,QStringList,QString);//id mac <remote ip>:<descr>
+    void addMyId2Hash(QString objId, QStringList mac, QString remIpDescr, QStringHash hashObjIfo);//id mac <remote ip>:<descr>
     void removeMyId2Hash(QStringList);//id mac
 
 
     void connMe2ThisIdOrMac(QString, bool, QString, QString);//mac or id, isMacMode, socket id
 
     void showMess(QString);
-    void infoAboutObj(QString);
+    void infoAboutObj(QString remIpDescr, QStringHash objIfo);
+
 
 
 
@@ -78,10 +80,16 @@ private slots:
     void onDisconn();
 
 
+
 private:
+    void mReadyReadF();
+
     void decodeReadDataJSON(const QByteArray &readArr);
     bool isConnOpen();
     bool messHshIsValid(const QJsonObject &jObj, QByteArray readArr);
+
+    QStringHash getObjIfo(const QVariantMap &h, const bool &addVersion);
+
     QJsonArray arrFromList(const QStringList &list);
     QString hshSummName(const int &indx) const;
     QStringList getHshNames() const;
@@ -100,6 +108,8 @@ private:
 
     quint16 lastCommand;
 
+
+    bool verbouseMode;
 
 };
 

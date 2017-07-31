@@ -32,7 +32,7 @@
 SvahaTrymachZjednannya::SvahaTrymachZjednannya(QObject *parent) : QTcpServer(parent)
 {
     svahaServicePort = 0;
-    SettLoader4svaha sLoader;
+//#ifdef ISRASPI
 //    QFile fileConf(QString("%1/svaha.conf").arg(qApp->applicationDirPath()));
 //    if(fileConf.open(QFile::ReadOnly)){
 //        QStringList list = QString(fileConf.readAll()).split("\n", QString::SkipEmptyParts) ;
@@ -55,11 +55,13 @@ SvahaTrymachZjednannya::SvahaTrymachZjednannya(QObject *parent) : QTcpServer(par
 //    }else{
 //        qDebug() << "file "  << fileConf.fileName() << fileConf.errorString();
 //    }
+//#else
+    SettLoader4svaha sLoader;
     sLoader.checkDefSett();
     server4matildaConf = sLoader.loadOneSett(SETT_MATILDA_CONF_IP).toString();
     server4matildadev = sLoader.loadOneSett(SETT_MATILDA_DEV_IP).toString();
     svahaServicePort = (quint16)sLoader.loadOneSett(SETT_SVAHA_SERVICE_PORT).toUInt();
-
+//#endif
     if(server4matildadev.isEmpty())
         server4matildadev = "svaha.ddns.net";
 
@@ -69,9 +71,7 @@ SvahaTrymachZjednannya::SvahaTrymachZjednannya(QObject *parent) : QTcpServer(par
     if(svahaServicePort < 1000 || svahaServicePort >= 65535)
         svahaServicePort = 65000;
 
-
-
-
+    verboseOut = qApp->arguments().contains("-vv");
     qDebug() << "SvahaTrymachZjednannya=" << server4matildaConf << server4matildadev << svahaServicePort;
 
 //    for(int i = 0; i < 11; i++)
@@ -91,6 +91,7 @@ bool SvahaTrymachZjednannya::startService()
         }
 
         qRegisterMetaType<QStringHash>("QStringHash");
+        qRegisterMetaType<QStringHashHash>("QStringHashHash");
 
         QThread *thread = new QThread(this);
         server->moveToThread(thread);
@@ -98,7 +99,7 @@ bool SvahaTrymachZjednannya::startService()
         connect(server, SIGNAL(getHashRemoteIdAndDevId(QString, bool)), this, SLOT(getHashRemoteIdAndDevId(QString, bool)) );
         connect(server, SIGNAL(removeCerverID(QString)), this, SLOT(removeCerverID(QString)) );
         connect(server, SIGNAL(killClientNow(QString,bool)), this, SIGNAL(killClientNow(QString,bool)) );
-        connect(this, SIGNAL(remoteIdAndDevId(QStringHash,QStringHash,QStringHash,QString)), server, SIGNAL(remoteIdAndDevId(QStringHash,QStringHash,QStringHash,QString)) );
+        connect(this, SIGNAL(remoteIdAndDevId(QStringHash,QStringHash,QStringHash,QString,QStringHashHash)), server, SIGNAL(remoteIdAndDevId(QStringHash,QStringHash,QStringHash,QString,QStringHashHash)) );
 
         connect(server, SIGNAL(destroyed(QObject*)), thread, SLOT(quit()) );
         connect(thread, SIGNAL(finished()), thread, SLOT(deleteLater()) );
@@ -116,18 +117,22 @@ bool SvahaTrymachZjednannya::startService()
     return false;
 }
 //----------------------------------------------------------------------------------------------------------------------------
-void SvahaTrymachZjednannya::addMyId2Hash(QString id, QStringList macList, QString remoteId)
+void SvahaTrymachZjednannya::addMyId2Hash(QString objId, QStringList mac, QString remIpDescr, QStringHash hashObjIfo)
 {
     QString dt = QDateTime::currentDateTimeUtc().toString("yyyyMMddhhmmss");
-    for(int i = 0, iMax = macList.size(); i < iMax; i++){
-        hashMacDevId.insert(macList.at(i), id);
-        hashMacRemoteId.insert(macList.at(i), remoteId);
-        hashMacAddTime.insert(macList.at(i), dt);
-        qDebug() << "addMyId2Hash" << i << macList.at(i) << id << remoteId;
-    }   
-    emit updateCerver();
+    for(int i = 0, iMax = mac.size(); i < iMax; i++){
+        hashMacDevId.insert(mac.at(i), objId);
+        hashMacRemoteId.insert(mac.at(i), remIpDescr);
+        hashMacAddTime.insert(mac.at(i), dt);
+        hashMac2objectIfo.insert(mac.at(i), hashObjIfo);
 
+        qDebug() << "addMyId2Hash" << i << mac.at(i) << objId << remIpDescr ;
+        if( i == 0 )
+            qDebug() << "hashObjIfo " << hashObjIfo;
+    }
+    emit updateCerver();
 }
+
 //----------------------------------------------------------------------------------------------------------------------------
 void SvahaTrymachZjednannya::removeMyId2Hash(QStringList macList)
 {
@@ -138,7 +143,11 @@ void SvahaTrymachZjednannya::removeMyId2Hash(QStringList macList)
         hashMacDevId.remove(macList.at(i));
         hashMacRemoteId.remove(macList.at(i));
         hashMacAddTime.remove(macList.at(i));
-
+        hashMac2objectIfo.remove(macList.at(i));
+/*
+ * допускою ситуацію що є оданкові мак адреси (наприклад USB WiFi)
+ * тому коли виконується відєднання, то перевіряю чи не залишилось когось з такою мак адресою
+*/
         emit checkThisMac(macList.at(i));
 
     }
@@ -230,7 +239,7 @@ void SvahaTrymachZjednannya::getHashRemoteIdAndDevId(QString id, bool add2auto)
         cerverIdList.append(id);
     else if(!add2auto && cerverIdList.contains(id))
         cerverIdList.removeOne(id);
-    emit remoteIdAndDevId(hashMacRemoteId, hashMacDevId, hashMacAddTime, id);
+    emit remoteIdAndDevId(hashMacRemoteId, hashMacDevId, hashMacAddTime, id, hashMac2objectIfo);
 }
 //----------------------------------------------------------------------------------------------------------------------------
 void SvahaTrymachZjednannya::removeCerverID(QString id)
@@ -241,7 +250,7 @@ void SvahaTrymachZjednannya::removeCerverID(QString id)
 //----------------------------------------------------------------------------------------------------------------------------
 void SvahaTrymachZjednannya::incomingConnection(qintptr handle)
 {
-    SocketDlyaTrymacha *socket = new SocketDlyaTrymacha;
+    SocketDlyaTrymacha *socket = new SocketDlyaTrymacha(verboseOut);
     if(!socket->setSocketDescriptor(handle)){
         qDebug() << "incomingConnection if(!socket->setSocketDescriptor(socketDescr)){";
         socket->deleteLater();
@@ -258,7 +267,7 @@ void SvahaTrymachZjednannya::incomingConnection(qintptr handle)
     connect(thread, SIGNAL(started()), socket, SLOT(onThrdStarted()) );
 
     connect(socket, SIGNAL(connMe2ThisIdOrMac(QString,bool,QString, QString)), this, SLOT(connMe2ThisIdOrMac(QString,bool,QString,QString)) );
-    connect(socket, SIGNAL(addMyId2Hash(QString,QStringList,QString)), this, SLOT(addMyId2Hash(QString,QStringList,QString)) );
+    connect(socket, SIGNAL(addMyId2Hash(QString,QStringList,QString,QStringHash)), this, SLOT(addMyId2Hash(QString,QStringList,QString,QStringHash)) );
     connect(socket, SIGNAL(removeMyId2Hash(QStringList)), this, SLOT(removeMyId2Hash(QStringList)) );
 
     connect(this, SIGNAL(connMe2ThisIdOrMacSig(QStringList,QString)), socket, SLOT(connMe2ThisIdOrMacSlot(QStringList,QString)) );
@@ -276,7 +285,7 @@ void SvahaTrymachZjednannya::incomingConnection(qintptr handle)
 void SvahaTrymachZjednannya::sendCerverInfo()
 {
     for(int i = 0, iMax = cerverIdList.size(); i < iMax; i++)
-        emit remoteIdAndDevId(hashMacRemoteId, hashMacDevId, hashMacAddTime, cerverIdList.at(i));
+        emit remoteIdAndDevId(hashMacRemoteId, hashMacDevId, hashMacAddTime, cerverIdList.at(i), hashMac2objectIfo);
 
 }
 //----------------------------------------------------------------------------------------------------------------------------

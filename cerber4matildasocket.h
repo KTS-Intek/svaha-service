@@ -45,7 +45,7 @@ signals:
 public slots:
     void onThrdStarted();
 
-    void remoteIdAndDevId(QStringHash hashMacRemoteId, QStringHash hashMacDevId, QStringHash hashTime, QString id);
+    void remoteIdAndDevId(QStringHash hashMacRemoteId, QStringHash hashMacDevId, QStringHash hashTime, QString id, QStringHashHash hashAboutObject);
 
 
 private slots:
@@ -60,6 +60,8 @@ private:
     bool isConnOpen();
 //    QVariantHash errCodeLastOperation(const quint16 &command, const int &errCode) const;
 
+
+    QString strFromStrHash(const QStringHash &h);
 
     quint8 authorizeF(QVariantHash h);
     QVariantHash uncompressRead(QByteArray readArr, quint16 &command);

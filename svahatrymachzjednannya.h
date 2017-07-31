@@ -49,7 +49,7 @@ signals:
 
     void checkThisMac(QString);
 
-    void remoteIdAndDevId(QStringHash , QStringHash , QStringHash , QString );
+    void remoteIdAndDevId(QStringHash , QStringHash , QStringHash , QString , QStringHashHash hashAboutObject);
 
     void updateCerver();
 
@@ -58,7 +58,8 @@ signals:
 
 
 public slots:
-    void addMyId2Hash(QString id, QStringList macList, QString remoteId);//id mac <remote ip>:<descr>
+    void addMyId2Hash(QString objId, QStringList mac, QString remIpDescr, QStringHash hashObjIfo);//id mac <remote ip>:<descr>
+
     void removeMyId2Hash(QStringList macList);//id mac <remote ip>:<descr>
 
     void connMe2ThisIdOrMac(QString macOrId, bool isMac, QString myRemoteId, QString rIp);//mac or id, isMacMode, socket id
@@ -78,8 +79,12 @@ private slots:
 
 
 private:
-
+//поточний стан
     QStringHash hashMacRemoteId, hashMacDevId, hashMacAddTime;
+    QStringHashHash hashMac2objectIfo;
+    bool verboseOut;
+//історія підключень
+
 
     QString server4matildadev, server4matildaConf;
     quint16 svahaServicePort;
