@@ -40,6 +40,11 @@
 
 #define SETT_CERBERUS_PORT                  10
 
+
+#define SETT_SVAHA_MAXIMUM_PENDING_CONN     11
+
+
+
 typedef QHash<QString,QString> QStringHash;
 typedef QHash<QString, QStringHash> QStringHashHash;
 
@@ -79,7 +84,9 @@ public:
 
     static QString defSETT_ADMIN_PASSWRD();
 
-     static quint16 defSETT_CERBERUS_PORT();
+    static quint16 defSETT_CERBERUS_PORT();
+
+    static quint16 defSETT_SVAHA_MAXIMUM_PENDING_CONN();
 
 
 

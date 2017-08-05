@@ -33,8 +33,8 @@ SocketProsto::SocketProsto(QObject *parent) : QTcpSocket(parent)
 
 void SocketProsto::mWrite2socket(QByteArray writeArr)
 {
-        write(writeArr);
-        waitForBytesWritten(5);
+    write(writeArr);
+    waitForBytesWritten(5);
 }
 //----------------------------------------------------------------------------------
 

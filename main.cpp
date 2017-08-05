@@ -27,9 +27,6 @@ int main(int argc, char *argv[])
     QCoreApplication a(argc, argv);
 
     SvahaTrymachZjednannya svaha;
-    if(!svaha.startService()){
-        return 3;
-    }
-
+    svaha.initObjects();
     return a.exec();
 }

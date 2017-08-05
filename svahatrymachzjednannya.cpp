@@ -26,56 +26,15 @@
 #include "svahadladvoh.h"
 
 #include "socketdlyatrymacha.h"
+#include "backupmanager.h"
 
 
 //----------------------------------------------------------------------------------------------------------------------------
 SvahaTrymachZjednannya::SvahaTrymachZjednannya(QObject *parent) : QTcpServer(parent)
 {
     svahaServicePort = 0;
-//#ifdef ISRASPI
-//    QFile fileConf(QString("%1/svaha.conf").arg(qApp->applicationDirPath()));
-//    if(fileConf.open(QFile::ReadOnly)){
-//        QStringList list = QString(fileConf.readAll()).split("\n", QString::SkipEmptyParts) ;
-//        qDebug() << list;
-//        fileConf.close();
-//        for(int i = 0, iMax = list.size(); i < iMax; i++){
-//            qDebug() << "list " << i << list.at(i);
-//            if(list.at(i).left(15) == "matilda-dev-ip="){
-//                server4matildadev = list.at(i).mid(15).simplified().remove(" ");
-//            }else{
-//                if(list.at(i).left(16) == "matilda-conf-ip="){
-//                    server4matildaConf = list.at(i).mid(16).simplified().remove(" ");
-//                }else{
-//                    if(list.at(i).left(19) == "svaha-service-port="){
-//                        svahaServicePort = list.at(i).mid(19).simplified().remove(" ").toUInt();
-//                    }
-//                }
-//            }
-//        }
-//    }else{
-//        qDebug() << "file "  << fileConf.fileName() << fileConf.errorString();
-//    }
-//#else
-    SettLoader4svaha sLoader;
-    sLoader.checkDefSett();
-    server4matildaConf = sLoader.loadOneSett(SETT_MATILDA_CONF_IP).toString();
-    server4matildadev = sLoader.loadOneSett(SETT_MATILDA_DEV_IP).toString();
-    svahaServicePort = (quint16)sLoader.loadOneSett(SETT_SVAHA_SERVICE_PORT).toUInt();
-//#endif
-    if(server4matildadev.isEmpty())
-        server4matildadev = "svaha.ddns.net";
-
-    if(server4matildaConf.isEmpty())
-        server4matildaConf = "svaha.ddns.net";
-
-    if(svahaServicePort < 1000 || svahaServicePort >= 65535)
-        svahaServicePort = 65000;
-
     verboseOut = qApp->arguments().contains("-vv");
-    qDebug() << "SvahaTrymachZjednannya=" << server4matildaConf << server4matildadev << svahaServicePort;
 
-//    for(int i = 0; i < 11; i++)
-//        addMyId2Hash(QString("someId_%1").arg(i), QString("macaddr_%1").arg(i).split(","), QString("remote_id_%1").arg(i));
 }
 //----------------------------------------------------------------------------------------------------------------------------
 bool SvahaTrymachZjednannya::startService()
@@ -111,6 +70,25 @@ bool SvahaTrymachZjednannya::startService()
 
         connect(this, SIGNAL(updateCerver()), &tmrCerver, SLOT(start()) );
         connect(&tmrCerver, SIGNAL(timeout()), this, SLOT(sendCerverInfo()) );
+
+
+
+        BackUpManager *backup = new BackUpManager(verboseOut);
+        QThread *t = new QThread(this);
+
+        backup->moveToThread(t);
+        connect(backup, SIGNAL(destroyed(QObject*)), t, SLOT(quit()) );
+        connect(t, SIGNAL(finished()), t, SLOT(deleteLater()) );
+
+        connect(t, SIGNAL(started()), backup, SLOT(onThreadStarted()) );
+
+        connect(this, SIGNAL(onSyncRequestRemoteSha1isEqual(QStringList)), backup, SLOT(onSyncRequestRemoteSha1isEqual(QStringList)) );
+        connect(this, SIGNAL(onSyncFileDownloaded(QStringList,QString,QDateTime)), backup, SLOT(onSyncFileDownloaded(QStringList,QString,QDateTime)) );
+
+        connect(backup, SIGNAL(checkBackup4thisMac(QString,QString)), this, SIGNAL(checkBackup4thisMac(QString,QString)) );
+
+        t->start();
+
         return true;
     }
     qDebug() << "startService 10 " << svahaServicePort << errorString();
@@ -245,6 +223,67 @@ void SvahaTrymachZjednannya::getHashRemoteIdAndDevId(QString id, bool add2auto)
 void SvahaTrymachZjednannya::removeCerverID(QString id)
 {
     cerverIdList.removeOne(id);
+}
+//----------------------------------------------------------------------------------------------------------------------------
+void SvahaTrymachZjednannya::reloadSettings()
+{
+    SettLoader4svaha sLoader;
+    sLoader.checkDefSett();
+    server4matildaConf = sLoader.loadOneSett(SETT_MATILDA_CONF_IP).toString();
+    server4matildadev = sLoader.loadOneSett(SETT_MATILDA_DEV_IP).toString();
+    svahaServicePort = (quint16)sLoader.loadOneSett(SETT_SVAHA_SERVICE_PORT).toUInt();
+//#endif
+    if(server4matildadev.isEmpty())
+        server4matildadev = "svaha.ddns.net";
+
+    if(server4matildaConf.isEmpty())
+        server4matildaConf = "svaha.ddns.net";
+
+    if(svahaServicePort < 1000 || svahaServicePort >= 65535)
+        svahaServicePort = 65000;
+
+    bool isListen = isListening();
+
+    if(verboseOut)
+        qDebug() << "SvahaTrymachZjednannya=" << server4matildaConf << server4matildadev << svahaServicePort << isListen;
+
+    quint16 maxPendingConn = sLoader.loadOneSett(SETT_SVAHA_MAXIMUM_PENDING_CONN).toUInt();
+    if(maxPendingConn < 30 )
+        maxPendingConn = 30;
+
+    if((isListen && serverPort() != svahaServicePort) && (!isListen && !startService())){
+
+        QThread::msleep(111);
+        close();
+        QThread::msleep(111);
+        if(!startService()){
+            if(verboseOut)
+                qDebug() << "Can't start server " << errorString() << svahaServicePort ;
+            qApp->exit(3);
+            return;
+        }
+    }
+
+    if(maxPendingConn != maxPendingConnections())
+        setMaxPendingConnections(maxPendingConn);
+
+    emit tmrReloadSettStart();
+
+}
+//----------------------------------------------------------------------------------------------------------------------------
+void SvahaTrymachZjednannya::initObjects()
+{
+
+    QTimer *tmrReloadSett = new QTimer(this);
+    tmrReloadSett->setSingleShot(true);
+    tmrReloadSett->setInterval(15 * 60 * 1000);
+
+    connect(this, SIGNAL(tmrReloadSettStart()), tmrReloadSett, SLOT(start()) );
+    connect(tmrReloadSett, SIGNAL(timeout()), this, SLOT(reloadSettings()) );
+
+    QTimer::singleShot(1111, this, SLOT(reloadSettings()));
+    emit tmrReloadSettStart();
+
 }
 
 //----------------------------------------------------------------------------------------------------------------------------

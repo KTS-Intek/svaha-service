@@ -56,6 +56,16 @@ signals:
     void killClientNow(QString id, bool byDevId);
 
 
+    //reload settings timer
+    void tmrReloadSettStart();
+
+
+    //BackUpManager
+    //to manager
+    void onSyncRequestRemoteSha1isEqual(QStringList macL);//на віддаленому пристрої ХЕШ сума файлу не змінилась, не чіпаю, тільки видаляю з черги wait4answerSyncQueue
+    void onSyncFileDownloaded(QStringList macL, QString lastSha1base64, QDateTime dtCreatedUtc);//на віддаленому пристрої ХЕШ сума файлу змінилась, завантаження здійснено
+//from manager
+    void checkBackup4thisMac(QString mac, QString lastSha1base64);//check SHA1 for last backup file and if not equal: create new backup (check settings before this)  and upload to service
 
 public slots:
     void addMyId2Hash(QString objId, QStringList mac, QString remIpDescr, QStringHash hashObjIfo);//id mac <remote ip>:<descr>
@@ -67,6 +77,10 @@ public slots:
     void getHashRemoteIdAndDevId(QString id, bool add2auto);
 
     void removeCerverID(QString id);
+
+    void reloadSettings();
+
+    void initObjects();
 
 
 

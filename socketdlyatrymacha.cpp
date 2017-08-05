@@ -32,6 +32,7 @@
 #include "../matilda-bbb/moji_defy.h"
 #include "settloader4svaha.h"
 #include "readjsonhelper.h"
+#include "service4uploadbackup.h"
 
 #define REM_DEV_MATILDA_UNKNWN  -1
 #define REM_DEV_MATILDA_DEV     0
@@ -147,6 +148,58 @@ void SocketDlyaTrymacha::killClientNow(QString id, bool byDevId)
     }
 }
 //----------------------------------------------------------------------------------------------------------------------------
+void SocketDlyaTrymacha::checkBackup4thisMac(QString mac, QString lastSha1base64)
+{
+    if(mMac.contains(mac) && !macL4backupManager.contains(mac)){
+        QDateTime dt = QDateTime::currentDateTimeUtc();
+        if(!dtLastBackupCheck.isValid()){
+            dtLastBackupCheck = dt;
+            QTimer *t = new QTimer(this);
+            t->setSingleShot(true);
+            t->setInterval(111);
+
+            connect(this, SIGNAL(startTmrCheckRemoteSha1()), t, SLOT(start()) );
+            connect(this, SIGNAL(disconnected()), t, SLOT(stop()) );
+            connect(t, SIGNAL(timeout()), this, SLOT(checkRemoteSha1()) );
+
+        }else{
+            if(dtLastBackupCheck > dt){
+                //зараз виконуються операції з вивантаження файлу
+                macL4backupManager.append(mac);
+                return;
+            }
+//            if(dtLastBackupCheck <= dt)
+                dtLastBackupCheck = dt;
+//            if(dtLastBackupCheck.secsTo(dt) < 3600)
+//                return;
+        }
+
+        this->lastSha1base64 = lastSha1base64;
+        macL4backupManager.append(mac);
+
+        emit startTmrCheckRemoteSha1();
+    }
+}
+//----------------------------------------------------------------------------------------------------------------------------
+void SocketDlyaTrymacha::onSyncDone(quint8 sessionId, QString lastSha1base64, QDateTime dtCreatedUtc)
+{
+    if(sessionId == backupSessionId) {
+        emit onSyncFileDownloaded(macL, lastSha1base64, dtCreatedUtc);
+        macL4backupManager.clear();
+        dtLastBackupCheck = QDateTime::currentDateTimeUtc();
+    }
+}
+//----------------------------------------------------------------------------------------------------------------------------
+void SocketDlyaTrymacha::onSyncServiceDestr(quint8 sessionId)
+{
+    if(sessionId == backupSessionId) {
+        if(!macL4backupManager.isEmpty())
+            emit onSyncRequestRemoteSha1isEqual(macL);
+        macL4backupManager.clear();
+        dtLastBackupCheck = QDateTime::currentDateTimeUtc();
+    }
+}
+//----------------------------------------------------------------------------------------------------------------------------
 void SocketDlyaTrymacha::mReadyRead()
 {
     disconnect(this, SIGNAL(readyRead()), this, SLOT(mReadyRead()) );
@@ -224,8 +277,8 @@ void SocketDlyaTrymacha::mWrite2SocketJSON(QJsonObject jObj, const quint16 s_com
 
 //    qint64 len =
     write(writeArr);
-
-    qDebug() << "write " << peerAddress() << peerPort() <<  writeArr.left(44);
+    if(verbouseMode)
+        qDebug() << "write " << peerAddress() << peerPort() <<  writeArr.left(44);
 //    qDebug() << "write SocketDlyaTrymacha " << QTime::currentTime().toString("hh:mm:ss.zzz");
 
 
@@ -250,6 +303,54 @@ void SocketDlyaTrymacha::onDisconn()
         qDebug() << "onDisconn SocketDlyaTrymacha " << myRemoteIpAndDescr << mIden << mMac;
     deleteLater();
 
+}
+//----------------------------------------------------------------------------------------------------------------------------
+void SocketDlyaTrymacha::checkRemoteSha1()
+{
+    if(!macL4backupManager.isEmpty()){
+        dtLastBackupCheck = QDateTime::currentDateTimeUtc().addSecs(12 * 60 * 60);
+        QJsonObject j;
+        j.insert("lHsh", lastSha1base64);
+        mWrite2SocketJSON(j, COMMAND_CHECK_BACKUP_FILE_HASH_SUMM);
+
+    }
+}
+//----------------------------------------------------------------------------------------------------------------------------
+quint16 SocketDlyaTrymacha::startUploadBackup(const QString &serverIp)
+{
+    //запуск сервісу для вивантаження файлу резервної копії
+    Service4uploadBackup *server = new Service4uploadBackup;
+    SettLoader4svaha sLoader;
+    quint16 startPort = sLoader.loadOneSett(SETT_SVAHA_DATA_START_PORT).toUInt();
+    quint16 endPort = startPort + sLoader.loadOneSett(SETT_SVAHA_DATA_PORT_COUNT).toUInt();
+
+    if(startPort > 65534 || endPort > 65534 || startPort < 1000 || endPort < 1000){
+        startPort = SettLoader4svaha::defSETT_SVAHA_DATA_START_PORT();
+        endPort = startPort + SettLoader4svaha::defSETT_SVAHA_DATA_PORT_COUNT();
+    }
+
+
+    quint16 svahaPort = server->findFreePort(startPort, endPort);
+    qDebug() << "start SvahaDlaDvoh" << svahaPort;
+    if(svahaPort == 0){
+        server->deleteLater();
+
+    }else{
+        QThread *thread = new QThread(this);
+        server->setWrite4aut(QCryptographicHash::hash(QString("%1\n\t%2\n\t%3\n\t").arg(serverIp).arg(QString::number(svahaPort)).arg(lastSha1base64), QCryptographicHash::Sha3_256).toBase64(QByteArray::OmitTrailingEquals));
+
+        server->moveToThread(thread);
+        connect(thread, SIGNAL(started()), server, SLOT(onThrdStarted()) );
+        connect(server, SIGNAL(destroyed(QObject*)), thread, SLOT(quit()));
+        connect(thread, SIGNAL(finished()), thread, SLOT(deleteLater()) );
+
+        connect(this, SIGNAL(startTmrCheckRemoteSha1()), server, SLOT(onZombie()) );
+        connect(server, SIGNAL(onSyncDone(quint8,QString,QDateTime)), this, SLOT(onSyncDone(quint8,QString,QDateTime)) );
+        connect(server, SIGNAL(onSyncServiceDestr(quint8)), this, SLOT(onSyncServiceDestr(quint8)) );
+
+        thread->start();
+    }
+    return svahaPort;
 }
 //----------------------------------------------------------------------------------------------------------------------------
 void SocketDlyaTrymacha::mReadyReadF()
@@ -423,6 +524,7 @@ void SocketDlyaTrymacha::decodeReadDataJSON(const QByteArray &readArr)
                 emit infoAboutObj(myRemoteIpAndDescr, getObjIfo(hash.value("ao").toMap(), false));
 
 
+
         }else{
             onDisconn();
         }
@@ -430,6 +532,57 @@ void SocketDlyaTrymacha::decodeReadDataJSON(const QByteArray &readArr)
         if(timeZombie.elapsed() > 5000)
             mWrite2SocketJSON(QJsonObject(), COMMAND_I_AM_A_ZOMBIE);
         return;}
+
+
+    case COMMAND_CHECK_BACKUP_FILE_HASH_SUMM:{
+        if(verbouseMode)
+            qDebug() << "COMMAND_CHECK_BACKUP_FILE_HASH_SUMM " << isMatildaDev << hash;
+        if(isMatildaDev != REM_DEV_MATILDA_UNKNWN){
+            mWrite2SocketJSON(errCodeLastOperationJson(command, ERR_INCORRECT_REQUEST), COMMAND_ERROR_CODE);
+            isMatildaDev = REM_DEV_MATILDA_UNKNWN;
+            QTimer::singleShot(5555, this, SLOT(onDisconn()) );
+            break;
+        }
+
+
+        if(hash.value("hshChngd", true).toBool()){
+            emit infoAboutObj(myRemoteIpAndDescr, getObjIfo(hash.value("ao").toMap(), false));
+
+
+            QString serverIp = SettLoader4svaha().loadOneSett(SETT_MATILDA_DEV_IP).toString();
+            if(serverIp.isEmpty())
+                serverIp = "svaha.ddns.net";
+
+            quint16 svahaPort = startUploadBackup(serverIp);
+            if(verbouseMode)
+                qDebug() << "hshChngd= " << hash.value("hsh").toString() << hash.value("ssn").toInt() << lastSha1base64 << svahaPort;
+
+            if(svahaPort == 0){
+                emit onSyncRequestRemoteSha1isEqual(macL4backupManager);
+                dtLastBackupCheck = QDateTime::currentDateTimeUtc();
+            }else{
+                if(isMatildaDev == REM_DEV_MATILDA_DEV){
+                    QJsonObject jObj;//створити з'єднання в режимі вивантаження резервної копії
+                    jObj.insert("sIp", serverIp);
+                    jObj.insert("sP", svahaPort);
+                    jObj.insert("rIp", hash.value("hsh").toString());
+                    jObj.insert("ssn", hash.value("ssn").toInt());
+                    mWrite2SocketJSON(jObj, COMMAND_CONNECT_2_THIS_SERVICE);
+                    return;
+                }
+                isMatildaDev = REM_DEV_MATILDA_UNKNWN;
+            }
+
+
+        }else{
+            //конфігурація залишилась без змін,
+            emit onSyncRequestRemoteSha1isEqual(macL4backupManager);
+            dtLastBackupCheck = QDateTime::currentDateTimeUtc();
+        }
+        macL4backupManager.clear();
+
+        break; }
+
 
     default: qDebug() << "unknown command " << command; break;
 
@@ -532,6 +685,8 @@ QStringHash SocketDlyaTrymacha::getObjIfo(const QVariantMap &h, const bool &addV
         if(addVersion)
             hashAboutObj.insert("vrsn", QString::number(MATILDA_PROTOCOL_VERSION_V1));
     }
+    lastAboutObj = hashAboutObj;
+
     if(verbouseMode)
         qDebug() << "hashAboutObj " << hashAboutObj << h;
     return hashAboutObj;

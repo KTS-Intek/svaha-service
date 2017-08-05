@@ -57,6 +57,13 @@ signals:
     void infoAboutObj(QString remIpDescr, QStringHash objIfo);
 
 
+    //BackUpManager
+    void onSyncRequestRemoteSha1isEqual(QStringList macL);//на віддаленому пристрої ХЕШ сума файлу не змінилась, не чіпаю, тільки видаляю з черги wait4answerSyncQueue
+
+    void onSyncFileDownloaded(QStringList macL, QString lastSha1base64, QDateTime dtCreatedUtc);//на віддаленому пристрої ХЕШ сума файлу змінилась, завантаження здійснено
+
+
+    void startTmrCheckRemoteSha1();
 
 
 public slots:
@@ -74,14 +81,28 @@ public slots:
 
     void killClientNow(QString id, bool byDevId);
 
+    //BackUpManager
+    void checkBackup4thisMac(QString mac, QString lastSha1base64);//check SHA1 for last backup file and if not equal: create new backup (check settings before this)  and upload to service
+
+    void onSyncDone(quint8 sessionId, QString lastSha1base64, QDateTime dtCreatedUtc);//на віддаленому пристрої ХЕШ сума файлу змінилась, завантаження здійснено
+
+    void onSyncServiceDestr(quint8 sessionId);
+
+
 private slots:
     void mReadyRead();
     void mWrite2SocketJSON(QJsonObject jObj, const quint16 s_command);
     void onDisconn();
 
 
+    void checkRemoteSha1();
+
+
+
 
 private:
+    quint16 startUploadBackup(const QString &serverIp);
+
     void mReadyReadF();
 
     void decodeReadDataJSON(const QByteArray &readArr);
@@ -110,6 +131,14 @@ private:
 
 
     bool verbouseMode;
+
+
+    QStringList macL4backupManager;
+    QString lastSha1base64;
+    QDateTime dtLastBackupCheck;
+    QStringHash lastAboutObj;
+    quint8 backupSessionId;
+
 
 };
 

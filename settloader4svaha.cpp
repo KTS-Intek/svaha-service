@@ -39,7 +39,7 @@ void SettLoader4svaha::checkDefSett()
 
     QList<int> listKeys;
     listKeys << SETT_SVAHA_SERVICE_PORT << SETT_MATILDA_DEV_IP << SETT_MATILDA_CONF_IP << SETT_SVAHA_DATA_START_PORT << SETT_SVAHA_DATA_PORT_COUNT
-             << SETT_ZOMBIE_MSEC << SETT_TIME_2_LIVE << SETT_ADMIN_LOGIN << SETT_ADMIN_PASSWRD;
+             << SETT_ZOMBIE_MSEC << SETT_TIME_2_LIVE << SETT_ADMIN_LOGIN << SETT_ADMIN_PASSWRD << SETT_SVAHA_MAXIMUM_PENDING_CONN;
     settings.beginGroup("svaha-conf");
 
     for(int i = 0, iMax = listKeys.size(); i < iMax; i++){
@@ -49,20 +49,22 @@ void SettLoader4svaha::checkDefSett()
           QVariant var;
 
           switch(listKeys.at(i)){
-          case SETT_SVAHA_SERVICE_PORT : var = defSETT_SVAHA_SERVICE_PORT(); break;
-          case SETT_MATILDA_DEV_IP : var = defSETT_MATILDA_DEV_IP(); break;
-          case SETT_MATILDA_CONF_IP : var = defSETT_MATILDA_CONF_IP(); break;
-          case SETT_SVAHA_DATA_START_PORT : var = defSETT_SVAHA_DATA_START_PORT(); break;
-          case SETT_SVAHA_DATA_PORT_COUNT: var = defSETT_SVAHA_DATA_PORT_COUNT(); break;
+          case SETT_SVAHA_SERVICE_PORT          : var = defSETT_SVAHA_SERVICE_PORT()        ; break;
+          case SETT_MATILDA_DEV_IP              : var = defSETT_MATILDA_DEV_IP()            ; break;
+          case SETT_MATILDA_CONF_IP             : var = defSETT_MATILDA_CONF_IP()           ; break;
+          case SETT_SVAHA_DATA_START_PORT       : var = defSETT_SVAHA_DATA_START_PORT()     ; break;
+          case SETT_SVAHA_DATA_PORT_COUNT       : var = defSETT_SVAHA_DATA_PORT_COUNT()     ; break;
 
 
-          case SETT_ZOMBIE_MSEC : var = defSETT_ZOMBIE_MSEC(); break;
-          case SETT_TIME_2_LIVE : var = defSETT_TIME_2_LIVE(); break;
+          case SETT_ZOMBIE_MSEC                 : var = defSETT_ZOMBIE_MSEC()               ; break;
+          case SETT_TIME_2_LIVE                 : var = defSETT_TIME_2_LIVE()               ; break;
 
-          case SETT_ADMIN_LOGIN   : var = defSETT_ADMIN_LOGIN(); break;
-          case SETT_ADMIN_PASSWRD  : var = defSETT_ADMIN_PASSWRD(); break;
+          case SETT_ADMIN_LOGIN                 : var = defSETT_ADMIN_LOGIN()               ; break;
+          case SETT_ADMIN_PASSWRD               : var = defSETT_ADMIN_PASSWRD()             ; break;
 
-          case SETT_CERBERUS_PORT  : var = defSETT_CERBERUS_PORT(); break;
+          case SETT_CERBERUS_PORT               : var = defSETT_CERBERUS_PORT()             ; break;
+
+          case SETT_SVAHA_MAXIMUM_PENDING_CONN  : var = defSETT_SVAHA_MAXIMUM_PENDING_CONN(); break;
 
           default: continue; break;
           }
@@ -83,20 +85,23 @@ void SettLoader4svaha::checkDefSett()
 QString SettLoader4svaha::valName4key(const int &key)
 {
     switch(key){
-    case SETT_SVAHA_SERVICE_PORT : return "svaha-service-port";
-    case SETT_MATILDA_DEV_IP : return "matilda-dev-ip";
-    case SETT_MATILDA_CONF_IP : return "matilda-conf-ip";
-    case SETT_SVAHA_DATA_START_PORT : return "start-port";
-    case SETT_SVAHA_DATA_PORT_COUNT: return "port-count";
+    case SETT_SVAHA_SERVICE_PORT        : return "svaha-service-port";
+    case SETT_MATILDA_DEV_IP            : return "matilda-dev-ip";
+    case SETT_MATILDA_CONF_IP           : return "matilda-conf-ip";
+    case SETT_SVAHA_DATA_START_PORT     : return "start-port";
+    case SETT_SVAHA_DATA_PORT_COUNT     : return "port-count";
 
 
-    case SETT_ZOMBIE_MSEC : return "zombie-msec";
-    case SETT_TIME_2_LIVE : return "time2live";
+    case SETT_ZOMBIE_MSEC               : return "zombie-msec";
+    case SETT_TIME_2_LIVE               : return "time2live";
 
-    case SETT_ADMIN_LOGIN   : return "root_l";
-    case SETT_ADMIN_PASSWRD  : return "root_p";
+    case SETT_ADMIN_LOGIN               : return "root_l";
+    case SETT_ADMIN_PASSWRD             : return "root_p";
 
-    case SETT_CERBERUS_PORT  : return "cerberus-port";
+    case SETT_CERBERUS_PORT             : return "cerberus-port";
+
+    case SETT_SVAHA_MAXIMUM_PENDING_CONN: return "max-pending-conn";
+
 
     }
     return "";
@@ -110,31 +115,40 @@ QVariant SettLoader4svaha::loadOneSett(const int key)
         qDebug() << "sett is empty " << settings.fileName();
         return false;
     }
-     settings.beginGroup("svaha-conf");
 
-     QString valKey = valName4key(key);
+    QVariant v;
+
 
     switch(key){
-    case SETT_SVAHA_SERVICE_PORT : return settings.value(valKey, defSETT_SVAHA_SERVICE_PORT());
-    case SETT_MATILDA_DEV_IP : return settings.value(valKey, defSETT_MATILDA_DEV_IP());
-    case SETT_MATILDA_CONF_IP : return settings.value(valKey, defSETT_MATILDA_CONF_IP());
-    case SETT_SVAHA_DATA_START_PORT : return settings.value(valKey, defSETT_SVAHA_DATA_START_PORT());
-    case SETT_SVAHA_DATA_PORT_COUNT: return settings.value(valKey, defSETT_SVAHA_DATA_PORT_COUNT());
+    case SETT_SVAHA_SERVICE_PORT        : v = defSETT_SVAHA_SERVICE_PORT();
+    case SETT_MATILDA_DEV_IP            : v = defSETT_MATILDA_DEV_IP();
+    case SETT_MATILDA_CONF_IP           : v = defSETT_MATILDA_CONF_IP();
+    case SETT_SVAHA_DATA_START_PORT     : v = defSETT_SVAHA_DATA_START_PORT();
+    case SETT_SVAHA_DATA_PORT_COUNT     : v = defSETT_SVAHA_DATA_PORT_COUNT();
 
 
-    case SETT_ZOMBIE_MSEC : return settings.value(valKey, defSETT_ZOMBIE_MSEC());
-    case SETT_TIME_2_LIVE : return settings.value(valKey, defSETT_TIME_2_LIVE());
+    case SETT_ZOMBIE_MSEC               : v = defSETT_ZOMBIE_MSEC();
+    case SETT_TIME_2_LIVE               : v = defSETT_TIME_2_LIVE();
 
-    case SETT_ADMIN_LOGIN   : return settings.value(valKey, defSETT_ADMIN_LOGIN());
-    case SETT_ADMIN_PASSWRD  : return settings.value(valKey, defSETT_ADMIN_PASSWRD());
+    case SETT_ADMIN_LOGIN               : v = defSETT_ADMIN_LOGIN();
+    case SETT_ADMIN_PASSWRD             : v = defSETT_ADMIN_PASSWRD();
 
-    case SETT_CERBERUS_PORT  : return settings.value(valKey, defSETT_CERBERUS_PORT());
+    case SETT_CERBERUS_PORT             : v = defSETT_CERBERUS_PORT();
+    case SETT_SVAHA_MAXIMUM_PENDING_CONN: v = defSETT_SVAHA_MAXIMUM_PENDING_CONN();
 
     }
 
+    QString valKey = valName4key(key);
+    if(valKey.isEmpty()){
+        qDebug() << "loadOneSett unknown key " << key ;
+        return v;
+    }
+
+    settings.beginGroup("svaha-conf");
+    v = settings.value(valKey, v);
     settings.endGroup();
 
-    return QVariant();
+    return v;
 }
 //----------------------------------------------------------------------------------------------------------------------------
 bool SettLoader4svaha::saveOneSett(const int key, const QVariant data2save)
@@ -155,63 +169,34 @@ bool SettLoader4svaha::saveOneSett(const int key, const QVariant data2save)
     settings.setValue(valKey, data2save);
     settings.endGroup();
 
-       return true;
+    return true;
 
 }
-//----------------------------------------------------------------------------------------------------------------------------
-QString SettLoader4svaha::path2sett()
-{
 
-    return QString("%1/svaha.conf").arg(qApp->applicationDirPath());
-}
-//----------------------------------------------------------------------------------------------------------------------------
-quint16 SettLoader4svaha::defSETT_SVAHA_SERVICE_PORT()
-{
-    return (quint16)65000;
-}
-//----------------------------------------------------------------------------------------------------------------------------
-QString SettLoader4svaha::defSETT_MATILDA_DEV_IP()
-{
-    return "svaha.ddns.net";
-}
-//----------------------------------------------------------------------------------------------------------------------------
-QString SettLoader4svaha::defSETT_MATILDA_CONF_IP()
-{
-    return "svaha.ddns.net";
-}
-//----------------------------------------------------------------------------------------------------------------------------
-quint16 SettLoader4svaha::defSETT_SVAHA_DATA_START_PORT()
-{
-    return (quint16)50000;
-}
-//----------------------------------------------------------------------------------------------------------------------------
-quint16 SettLoader4svaha::defSETT_SVAHA_DATA_PORT_COUNT()
-{
-    return (quint16)1000;
-}
-//----------------------------------------------------------------------------------------------------------------------------
-int SettLoader4svaha::defSETT_ZOMBIE_MSEC()
-{
-    return (15 * 60 * 1000) ;
-}
-//----------------------------------------------------------------------------------------------------------------------------
-int SettLoader4svaha::defSETT_TIME_2_LIVE()
-{
-    return (24 * 60 * 60 * 1000) ;
-}
-//----------------------------------------------------------------------------------------------------------------------------
-QString SettLoader4svaha::defSETT_ADMIN_LOGIN()
-{
-    return "root";// QCryptographicHash::hash(QByteArray("root"), QCryptographicHash::Sha3_256);
-}
-//----------------------------------------------------------------------------------------------------------------------------
-QString SettLoader4svaha::defSETT_ADMIN_PASSWRD()
-{
-    return "ChystaKrynytsa-Trutni-W.H.I.T.E";//QCryptographicHash::hash(QByteArray(""), QCryptographicHash::Sha3_256);
-}
-//----------------------------------------------------------------------------------------------------------------------------
-quint16 SettLoader4svaha::defSETT_CERBERUS_PORT()
-{
-    return (quint16)50000;//після налаштування роутера замінити на 65001
-}
-//----------------------------------------------------------------------------------------------------------------------------
+QString SettLoader4svaha::path2sett(){ return QString("%1/svaha.conf").arg(qApp->applicationDirPath()); }
+
+quint16 SettLoader4svaha::defSETT_SVAHA_SERVICE_PORT()        { return (quint16)65000   ;}
+
+QString SettLoader4svaha::defSETT_MATILDA_DEV_IP()            { return "svaha.ddns.net" ;}
+
+QString SettLoader4svaha::defSETT_MATILDA_CONF_IP()           { return "svaha.ddns.net" ;}
+
+quint16 SettLoader4svaha::defSETT_SVAHA_DATA_START_PORT()     { return (quint16)50000   ;}
+
+
+quint16 SettLoader4svaha::defSETT_SVAHA_DATA_PORT_COUNT()     { return (quint16)100      ; } //out server count
+
+
+int SettLoader4svaha::defSETT_ZOMBIE_MSEC()                   { return (15 * 60 * 1000)     ; }
+
+int SettLoader4svaha::defSETT_TIME_2_LIVE()                   { return (24 * 60 * 60 * 1000) ; }
+
+QString SettLoader4svaha::defSETT_ADMIN_LOGIN()               { return "root";         } // QCryptographicHash::hash(QByteArray("root"), QCryptographicHash::Sha3_256);
+
+QString SettLoader4svaha::defSETT_ADMIN_PASSWRD()             { return "ChystaKrynytsa-Trutni-W.H.I.T.E"; } //QCryptographicHash::hash(QByteArray(""), QCryptographicHash::Sha3_256);
+
+quint16 SettLoader4svaha::defSETT_CERBERUS_PORT()             { return (quint16)50000; } //після налаштування роутера замінити на 65001
+
+quint16 SettLoader4svaha::defSETT_SVAHA_MAXIMUM_PENDING_CONN(){ return (quint16)500  ; }
+
+

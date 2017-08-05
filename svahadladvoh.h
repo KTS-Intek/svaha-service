@@ -29,7 +29,7 @@ class SvahaDlaDvoh : public QTcpServer
 {
     Q_OBJECT
 public:
-    explicit SvahaDlaDvoh(QObject *parent = 0);
+    explicit SvahaDlaDvoh(const bool &verboseMode, QObject *parent = 0);
     quint16 findFreePort(quint16 minP, const quint16 &maxP);
 
 signals:
@@ -53,6 +53,7 @@ private:
     int connCounter;
     QByteArray buffArr;
 
+    bool verboseMode;
 };
 
 #endif // SVAHADLADVOH_H
