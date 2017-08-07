@@ -2,13 +2,12 @@
 #include "settloader4svaha.h"
 #include "checklocalfilesha1.h"
 
-
+#include "svahadefine.h"
 
 //---------------------------------------------------------------------------------------------------
 BackUpManager::BackUpManager(const bool &verboseMode, QObject *parent) : QObject(parent)
 {
     this->verboseMode = verboseMode;
-    syncSett.maxSizeCheckSha1LocalFs = 100000;
     currSha1LocalFsMacQueue = 0;
 }
 //---------------------------------------------------------------------------------------------------
@@ -26,6 +25,27 @@ void BackUpManager::onThreadStarted()
 //---------------------------------------------------------------------------------------------------
 void BackUpManager::reloadSettings()
 {
+    /*
+        QString workDir;
+        quint8 syncMode;
+        quint8 maxFileCount;
+
+        quint32 maxSizeMacTable;//maximum Mac count, обмежує hConnectedMac2date
+
+        quint32 maxCountSha1LocalFsParallel;//maximum thread for check sha1
+
+
+        qint32 maxSizeSyncRequest; //maximum sync request list size
+        quint32 maxCountSyncRequestParallel; //maximum request at the same time
+*/
+    SettLoader4svaha sLoader;
+    syncSett.workDir = sLoader.loadOneSett(SETT_SYNC_WORKDIR).toString();
+    syncSett.syncMode = sLoader.loadOneSett(SETT_SYNC_MODE).toUInt();
+    syncSett.maxFileCount = sLoader.loadOneSett(SETT_SYNC_MAX_FILE_COUNT).toUInt();
+    syncSett.maxSizeMacTable = sLoader.loadOneSett(SETT_SYNC_MAX_SIZE_MAC_TABLE).toUInt();
+    syncSett.maxCountSha1LocalFsParallel = sLoader.loadOneSett(SETT_SYNC_MAX_COUNT_SHA1_CHRSPRLL).toUInt();
+    syncSett.maxSizeSyncRequest = sLoader.loadOneSett(SETT_SYNC_MAX_SIZE_SYNC_REQUEST).toInt();
+    syncSett.maxCountSyncRequestParallel = sLoader.loadOneSett(SETT_SYNC_MAX_COUNT_SYNQ_RQSTPRLL).toUInt();
 
 }
 //---------------------------------------------------------------------------------------------------
@@ -298,14 +318,14 @@ void BackUpManager::removeMacFromSyncQueue(const QString &mac)
 }
 //---------------------------------------------------------------------------------------------------
 QStringList BackUpManager::removeOldConnections(QHash<qint64, QStringList> &hDateConnected2macLst, QHash<QString, qint64> &hConnectedMac2date, quint32 currConnCounter,
-                                         const quint32 &maxConnSize, const QHash<QString, bool> &hAliveMacConn)
+                                         const quint32 &maxConnSize, QHash<QString, bool> &hAliveMacConn)
 {
     QStringList killedMacs;
     //видаляю старі з'єднання, крім тих що використовуються
     QList<qint64> lk = hDateConnected2macLst.keys();
     std::sort(lk.begin(), lk.end());
 
-    for(int i = 0; i < 10000 && !lValues.isEmpty() && currConnCounter >= maxConnSize; i++){
+    for(int i = 0; i < 10000 && !lk.isEmpty() && currConnCounter >= maxConnSize; i++){
         QStringList macL = hDateConnected2macLst.value(lk.at(i));
         QStringList l;
         for(int j = 0, jMax = macL.size(); j < jMax; j++){

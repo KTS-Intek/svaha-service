@@ -64,6 +64,10 @@ signals:
     //to manager
     void onSyncRequestRemoteSha1isEqual(QStringList macL);//на віддаленому пристрої ХЕШ сума файлу не змінилась, не чіпаю, тільки видаляю з черги wait4answerSyncQueue
     void onSyncFileDownloaded(QStringList macL, QString lastSha1base64, QDateTime dtCreatedUtc);//на віддаленому пристрої ХЕШ сума файлу змінилась, завантаження здійснено
+
+    void onConnectedThisMacs(QStringList macL); //only if allowed sync, check mac, add 2 checkSha1LocalFsMacQueue
+    void onDisconnectedThisMacs(QStringList macL, int counter);
+
 //from manager
     void checkBackup4thisMac(QString mac, QString lastSha1base64);//check SHA1 for last backup file and if not equal: create new backup (check settings before this)  and upload to service
 

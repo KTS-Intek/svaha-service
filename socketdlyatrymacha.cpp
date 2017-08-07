@@ -151,6 +151,7 @@ void SocketDlyaTrymacha::killClientNow(QString id, bool byDevId)
 void SocketDlyaTrymacha::checkBackup4thisMac(QString mac, QString lastSha1base64)
 {
     if(mMac.contains(mac) && !macL4backupManager.contains(mac)){
+
         QDateTime dt = QDateTime::currentDateTimeUtc();
         if(!dtLastBackupCheck.isValid()){
             dtLastBackupCheck = dt;
@@ -177,14 +178,22 @@ void SocketDlyaTrymacha::checkBackup4thisMac(QString mac, QString lastSha1base64
         this->lastSha1base64 = lastSha1base64;
         macL4backupManager.append(mac);
 
+
         emit startTmrCheckRemoteSha1();
+
+        if(verbouseMode)
+            qDebug() << "checkBackup4thisMac " << mac << lastSha1base64 << dtLastBackupCheck << dt;
     }
 }
 //----------------------------------------------------------------------------------------------------------------------------
 void SocketDlyaTrymacha::onSyncDone(quint8 sessionId, QString lastSha1base64, QDateTime dtCreatedUtc)
 {
+    if(verbouseMode)
+        qDebug() << "SocketDlyaTrymacha::onSyncDone " << sessionId << backupSessionId << lastSha1base64 << dtCreatedUtc << this->lastSha1base64 << macL4backupManager;
     if(sessionId == backupSessionId) {
-        emit onSyncFileDownloaded(macL, lastSha1base64, dtCreatedUtc);
+
+        emit onSyncFileDownloaded(macL4backupManager, lastSha1base64, dtCreatedUtc);
+        this->lastSha1base64 = lastSha1base64;
         macL4backupManager.clear();
         dtLastBackupCheck = QDateTime::currentDateTimeUtc();
     }
@@ -192,9 +201,12 @@ void SocketDlyaTrymacha::onSyncDone(quint8 sessionId, QString lastSha1base64, QD
 //----------------------------------------------------------------------------------------------------------------------------
 void SocketDlyaTrymacha::onSyncServiceDestr(quint8 sessionId)
 {
+    if(verbouseMode)
+        qDebug() << "SocketDlyaTrymacha::onSyncServiceDestr " << sessionId << backupSessionId << lastSha1base64 << macL4backupManager;
+
     if(sessionId == backupSessionId) {
         if(!macL4backupManager.isEmpty())
-            emit onSyncRequestRemoteSha1isEqual(macL);
+            emit onSyncRequestRemoteSha1isEqual(macL4backupManager);
         macL4backupManager.clear();
         dtLastBackupCheck = QDateTime::currentDateTimeUtc();
     }
@@ -316,10 +328,11 @@ void SocketDlyaTrymacha::checkRemoteSha1()
     }
 }
 //----------------------------------------------------------------------------------------------------------------------------
-quint16 SocketDlyaTrymacha::startUploadBackup(const QString &serverIp)
+quint16 SocketDlyaTrymacha::startUploadBackup(const QString &serverIp, const QString &lastSha1base64)
 {
+    backupSessionId++;
     //запуск сервісу для вивантаження файлу резервної копії
-    Service4uploadBackup *server = new Service4uploadBackup;
+    Service4uploadBackup *server = new Service4uploadBackup(verbouseMode, backupSessionId);
     SettLoader4svaha sLoader;
     quint16 startPort = sLoader.loadOneSett(SETT_SVAHA_DATA_START_PORT).toUInt();
     quint16 endPort = startPort + sLoader.loadOneSett(SETT_SVAHA_DATA_PORT_COUNT).toUInt();
@@ -331,13 +344,14 @@ quint16 SocketDlyaTrymacha::startUploadBackup(const QString &serverIp)
 
 
     quint16 svahaPort = server->findFreePort(startPort, endPort);
-    qDebug() << "start SvahaDlaDvoh" << svahaPort;
+    if(verbouseMode)
+        qDebug() << "start startUploadBackup" << svahaPort << backupSessionId;
     if(svahaPort == 0){
         server->deleteLater();
 
     }else{
         QThread *thread = new QThread(this);
-        server->setWrite4aut(QCryptographicHash::hash(QString("%1\n\t%2\n\t%3\n\t").arg(serverIp).arg(QString::number(svahaPort)).arg(lastSha1base64), QCryptographicHash::Sha3_256).toBase64(QByteArray::OmitTrailingEquals));
+        server->setWrite4aut(QCryptographicHash::hash(QString("%1\n\t%2\n\t%3\n\tAnnet\n\t").arg(serverIp).arg(QString::number(svahaPort)).arg(lastSha1base64).toLocal8Bit(), QCryptographicHash::Sha3_256).toBase64(QByteArray::OmitTrailingEquals), lastSha1base64);
 
         server->moveToThread(thread);
         connect(thread, SIGNAL(started()), server, SLOT(onThrdStarted()) );
@@ -553,7 +567,7 @@ void SocketDlyaTrymacha::decodeReadDataJSON(const QByteArray &readArr)
             if(serverIp.isEmpty())
                 serverIp = "svaha.ddns.net";
 
-            quint16 svahaPort = startUploadBackup(serverIp);
+            quint16 svahaPort = startUploadBackup(serverIp, hash.value("hsh").toString());
             if(verbouseMode)
                 qDebug() << "hshChngd= " << hash.value("hsh").toString() << hash.value("ssn").toInt() << lastSha1base64 << svahaPort;
 

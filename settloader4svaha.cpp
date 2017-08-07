@@ -20,6 +20,8 @@
 **
 ****************************************************************************/
 #include "settloader4svaha.h"
+#include "svahadefine.h"
+
 #include <QSettings>
 
 #include <QtCore>
@@ -46,35 +48,42 @@ void SettLoader4svaha::checkDefSett()
           if(settings.contains( valName4key(listKeys.at(i)) ))
               continue;
 
-          QVariant var;
+          QVariant v;
 
           switch(listKeys.at(i)){
-          case SETT_SVAHA_SERVICE_PORT          : var = defSETT_SVAHA_SERVICE_PORT()        ; break;
-          case SETT_MATILDA_DEV_IP              : var = defSETT_MATILDA_DEV_IP()            ; break;
-          case SETT_MATILDA_CONF_IP             : var = defSETT_MATILDA_CONF_IP()           ; break;
-          case SETT_SVAHA_DATA_START_PORT       : var = defSETT_SVAHA_DATA_START_PORT()     ; break;
-          case SETT_SVAHA_DATA_PORT_COUNT       : var = defSETT_SVAHA_DATA_PORT_COUNT()     ; break;
+          case SETT_SVAHA_SERVICE_PORT            : v = defSETT_SVAHA_SERVICE_PORT()          ; break;
+          case SETT_MATILDA_DEV_IP                : v = defSETT_MATILDA_DEV_IP()              ; break;
+          case SETT_MATILDA_CONF_IP               : v = defSETT_MATILDA_CONF_IP()             ; break;
+          case SETT_SVAHA_DATA_START_PORT         : v = defSETT_SVAHA_DATA_START_PORT()       ; break;
+          case SETT_SVAHA_DATA_PORT_COUNT         : v = defSETT_SVAHA_DATA_PORT_COUNT()       ; break;
 
 
-          case SETT_ZOMBIE_MSEC                 : var = defSETT_ZOMBIE_MSEC()               ; break;
-          case SETT_TIME_2_LIVE                 : var = defSETT_TIME_2_LIVE()               ; break;
+          case SETT_ZOMBIE_MSEC                   : v = defSETT_ZOMBIE_MSEC()                 ; break;
+          case SETT_TIME_2_LIVE                   : v = defSETT_TIME_2_LIVE()                 ; break;
 
-          case SETT_ADMIN_LOGIN                 : var = defSETT_ADMIN_LOGIN()               ; break;
-          case SETT_ADMIN_PASSWRD               : var = defSETT_ADMIN_PASSWRD()             ; break;
+          case SETT_ADMIN_LOGIN                   : v = defSETT_ADMIN_LOGIN()                 ; break;
+          case SETT_ADMIN_PASSWRD                 : v = defSETT_ADMIN_PASSWRD()               ; break;
 
-          case SETT_CERBERUS_PORT               : var = defSETT_CERBERUS_PORT()             ; break;
+          case SETT_CERBERUS_PORT                 : v = defSETT_CERBERUS_PORT()               ; break;
+          case SETT_SVAHA_MAXIMUM_PENDING_CONN    : v = defSETT_SVAHA_MAXIMUM_PENDING_CONN()  ; break;
 
-          case SETT_SVAHA_MAXIMUM_PENDING_CONN  : var = defSETT_SVAHA_MAXIMUM_PENDING_CONN(); break;
+          case SETT_SYNC_WORKDIR                  : v = defSETT_SYNC_WORKDIR()                ; break;
+          case SETT_SYNC_MODE                     : v = defSETT_SYNC_MODE()                   ; break;
+          case SETT_SYNC_MAX_FILE_COUNT           : v = defSETT_SYNC_MAX_FILE_COUNT()         ; break;
+          case SETT_SYNC_MAX_SIZE_MAC_TABLE       : v = defSETT_SYNC_MAX_SIZE_MAC_TABLE()     ; break;
+          case SETT_SYNC_MAX_COUNT_SHA1_CHRSPRLL  : v = defSETT_SYNC_MAX_COUNT_SHA1_CHRSPRLL(); break;
+          case SETT_SYNC_MAX_SIZE_SYNC_REQUEST    : v = defSETT_SYNC_MAX_SIZE_SYNC_REQUEST()  ; break;
+          case SETT_SYNC_MAX_COUNT_SYNQ_RQSTPRLL  : v = defSETT_SYNC_MAX_COUNT_SYNQ_RQSTPRLL(); break;
 
           default: continue; break;
           }
 
-          settings.setValue(  valName4key( listKeys.at(i))   , var);
+          settings.setValue(  valName4key( listKeys.at(i))   , v);
 
 
 
           qDebug() << "checkDefSett " << listKeys.at(i) << valName4key( listKeys.at(i))  << settings.contains( valName4key(listKeys.at(i)))
-                   << settings.value(valName4key(listKeys.at(i))) << var;
+                   << settings.value(valName4key(listKeys.at(i))) << v;
 
 
     }
@@ -84,25 +93,32 @@ void SettLoader4svaha::checkDefSett()
 //----------------------------------------------------------------------------------------------------------------------------
 QString SettLoader4svaha::valName4key(const int &key)
 {
+    QString s;
     switch(key){
-    case SETT_SVAHA_SERVICE_PORT        : return "svaha-service-port";
-    case SETT_MATILDA_DEV_IP            : return "matilda-dev-ip";
-    case SETT_MATILDA_CONF_IP           : return "matilda-conf-ip";
-    case SETT_SVAHA_DATA_START_PORT     : return "start-port";
-    case SETT_SVAHA_DATA_PORT_COUNT     : return "port-count";
+    case SETT_SVAHA_SERVICE_PORT            : s = "svaha-service-port"      ; break;
+    case SETT_MATILDA_DEV_IP                : s = "matilda-dev-ip"          ; break;
+    case SETT_MATILDA_CONF_IP               : s = "matilda-conf-ip"         ; break;
+    case SETT_SVAHA_DATA_START_PORT         : s = "start-port"              ; break;
+    case SETT_SVAHA_DATA_PORT_COUNT         : s = "port-count"              ; break;
 
 
-    case SETT_ZOMBIE_MSEC               : return "zombie-msec";
-    case SETT_TIME_2_LIVE               : return "time2live";
+    case SETT_ZOMBIE_MSEC                   : s = "zombie-msec"             ; break;
+    case SETT_TIME_2_LIVE                   : s = "time2live"               ; break;
 
-    case SETT_ADMIN_LOGIN               : return "root_l";
-    case SETT_ADMIN_PASSWRD             : return "root_p";
+    case SETT_ADMIN_LOGIN                   : s = "root_l"                  ; break;
+    case SETT_ADMIN_PASSWRD                 : s = "root_p"                  ; break;
 
-    case SETT_CERBERUS_PORT             : return "cerberus-port";
+    case SETT_CERBERUS_PORT                 : s = "cerberus-port"           ; break;
 
-    case SETT_SVAHA_MAXIMUM_PENDING_CONN: return "max-pending-conn";
+    case SETT_SVAHA_MAXIMUM_PENDING_CONN    : s = "max-pending-conn"        ; break;
 
-
+    case SETT_SYNC_WORKDIR                  : s = "sync-work-dir"           ; break;
+    case SETT_SYNC_MODE                     : s = "sync-mode"               ; break;
+    case SETT_SYNC_MAX_FILE_COUNT           : s = "sync-max-file-count"     ; break;
+    case SETT_SYNC_MAX_SIZE_MAC_TABLE       : s = "sync-max-size-mact"      ; break;
+    case SETT_SYNC_MAX_COUNT_SHA1_CHRSPRLL  : s = "sync-max-count-fsprll"   ; break;
+    case SETT_SYNC_MAX_SIZE_SYNC_REQUEST    : s = "sync-max-size-reqets"    ; break;
+    case SETT_SYNC_MAX_COUNT_SYNQ_RQSTPRLL  : s = "sync-max-count-rqstprll" ; break;
     }
     return "";
 }
@@ -120,22 +136,29 @@ QVariant SettLoader4svaha::loadOneSett(const int key)
 
 
     switch(key){
-    case SETT_SVAHA_SERVICE_PORT        : v = defSETT_SVAHA_SERVICE_PORT();
-    case SETT_MATILDA_DEV_IP            : v = defSETT_MATILDA_DEV_IP();
-    case SETT_MATILDA_CONF_IP           : v = defSETT_MATILDA_CONF_IP();
-    case SETT_SVAHA_DATA_START_PORT     : v = defSETT_SVAHA_DATA_START_PORT();
-    case SETT_SVAHA_DATA_PORT_COUNT     : v = defSETT_SVAHA_DATA_PORT_COUNT();
+    case SETT_SVAHA_SERVICE_PORT            : v = defSETT_SVAHA_SERVICE_PORT()          ; break;
+    case SETT_MATILDA_DEV_IP                : v = defSETT_MATILDA_DEV_IP()              ; break;
+    case SETT_MATILDA_CONF_IP               : v = defSETT_MATILDA_CONF_IP()             ; break;
+    case SETT_SVAHA_DATA_START_PORT         : v = defSETT_SVAHA_DATA_START_PORT()       ; break;
+    case SETT_SVAHA_DATA_PORT_COUNT         : v = defSETT_SVAHA_DATA_PORT_COUNT()       ; break;
 
 
-    case SETT_ZOMBIE_MSEC               : v = defSETT_ZOMBIE_MSEC();
-    case SETT_TIME_2_LIVE               : v = defSETT_TIME_2_LIVE();
+    case SETT_ZOMBIE_MSEC                   : v = defSETT_ZOMBIE_MSEC()                 ; break;
+    case SETT_TIME_2_LIVE                   : v = defSETT_TIME_2_LIVE()                 ; break;
 
-    case SETT_ADMIN_LOGIN               : v = defSETT_ADMIN_LOGIN();
-    case SETT_ADMIN_PASSWRD             : v = defSETT_ADMIN_PASSWRD();
+    case SETT_ADMIN_LOGIN                   : v = defSETT_ADMIN_LOGIN()                 ; break;
+    case SETT_ADMIN_PASSWRD                 : v = defSETT_ADMIN_PASSWRD()               ; break;
 
-    case SETT_CERBERUS_PORT             : v = defSETT_CERBERUS_PORT();
-    case SETT_SVAHA_MAXIMUM_PENDING_CONN: v = defSETT_SVAHA_MAXIMUM_PENDING_CONN();
+    case SETT_CERBERUS_PORT                 : v = defSETT_CERBERUS_PORT()               ; break;
+    case SETT_SVAHA_MAXIMUM_PENDING_CONN    : v = defSETT_SVAHA_MAXIMUM_PENDING_CONN()  ; break;
 
+    case SETT_SYNC_WORKDIR                  : v = defSETT_SYNC_WORKDIR()                ; break;
+    case SETT_SYNC_MODE                     : v = defSETT_SYNC_MODE()                   ; break;
+    case SETT_SYNC_MAX_FILE_COUNT           : v = defSETT_SYNC_MAX_FILE_COUNT()         ; break;
+    case SETT_SYNC_MAX_SIZE_MAC_TABLE       : v = defSETT_SYNC_MAX_SIZE_MAC_TABLE()     ; break;
+    case SETT_SYNC_MAX_COUNT_SHA1_CHRSPRLL  : v = defSETT_SYNC_MAX_COUNT_SHA1_CHRSPRLL(); break;
+    case SETT_SYNC_MAX_SIZE_SYNC_REQUEST    : v = defSETT_SYNC_MAX_SIZE_SYNC_REQUEST()  ; break;
+    case SETT_SYNC_MAX_COUNT_SYNQ_RQSTPRLL  : v = defSETT_SYNC_MAX_COUNT_SYNQ_RQSTPRLL(); break;
     }
 
     QString valKey = valName4key(key);
@@ -198,5 +221,31 @@ QString SettLoader4svaha::defSETT_ADMIN_PASSWRD()             { return "ChystaKr
 quint16 SettLoader4svaha::defSETT_CERBERUS_PORT()             { return (quint16)50000; } //після налаштування роутера замінити на 65001
 
 quint16 SettLoader4svaha::defSETT_SVAHA_MAXIMUM_PENDING_CONN(){ return (quint16)500  ; }
+
+
+QString SettLoader4svaha::defSETT_SYNC_WORKDIR()
+{
+    QDir dir(qApp->applicationDirPath());
+    dir.cdUp();
+
+    QString s = dir.absolutePath() + "/backups";
+    dir.setPath(s);
+    if(!dir.exists())
+        dir.mkpath(s);
+    return s;
+}
+
+
+quint8 SettLoader4svaha::defSETT_SYNC_MODE()                    { return DT_MODE_EVERY_DAY  ; }
+
+quint32 SettLoader4svaha::defSETT_SYNC_MAX_FILE_COUNT()         { return 10                 ; }
+
+quint32 SettLoader4svaha::defSETT_SYNC_MAX_SIZE_MAC_TABLE()     { return 10000              ; }
+
+quint32 SettLoader4svaha::defSETT_SYNC_MAX_COUNT_SHA1_CHRSPRLL(){ return 10                 ; }
+
+quint32 SettLoader4svaha::defSETT_SYNC_MAX_SIZE_SYNC_REQUEST()  { return 10000              ; }
+
+quint32 SettLoader4svaha::defSETT_SYNC_MAX_COUNT_SYNQ_RQSTPRLL(){ return 10                 ; }
 
 

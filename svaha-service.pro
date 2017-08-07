@@ -35,7 +35,8 @@ SOURCES += main.cpp \
     matildaprotocolhelper.cpp \
     checklocalfilesha1.cpp \
     service4uploadbackup.cpp \
-    socket4uploadbackup.cpp
+    socket4uploadbackup.cpp \
+    settloader4matilda.cpp
 
 HEADERS += \
     svahatrymachzjednannya.h \
@@ -53,7 +54,9 @@ HEADERS += \
     matildaprotocolhelper.h \
     checklocalfilesha1.h \
     service4uploadbackup.h \
-    socket4uploadbackup.h
+    socket4uploadbackup.h \
+    settloader4matilda.h \
+    svahadefine.h
 
 DISTFILES += \
     LICENSE

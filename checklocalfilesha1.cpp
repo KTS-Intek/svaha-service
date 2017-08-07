@@ -1,6 +1,7 @@
 #include "checklocalfilesha1.h"
 #include <QtCore>
 #include "matildaprotocolhelper.h"
+#include "svahadefine.h"
 
 //--------------------------------------------------------------------------------
 CheckLocalFileSha1::CheckLocalFileSha1(const QStringList &macL, const QString &workDir, const quint8 &dtMode, const quint8 &maxFileCount, QObject *parent) : QObject(parent)
@@ -66,12 +67,12 @@ void CheckLocalFileSha1::startCheck()
                 //found matches
                 for(int n = 0; n < nMax && n < 100; n++){
 
-                    if(s.contains(QString(QRegularExpression(QString("^(?=.*_MAC[\\d]:%1_).*$").arg(fsett.macL.at(n)))))){ //<base 64 sha1>_MAC0:12:23:23:ab:ac
+                    if(s.contains(QRegularExpression(QString("^(?=.*_MAC[\\d]:%1_).*$").arg(fsett.macL.at(n))))){ //<base 64 sha1>_MAC0:12:23:23:ab:ac
 
                         if(!hMac2counter.contains(fsett.macL.at(n))){
                             //first
 
-                            QStringList sha1 = s.split("_").first();// MatildaProtocolHelper::calcFileSha1(fsett.workDir + "/" + lastPath + "/" + s, ok);
+                            QString sha1 = s.split("_").first();// MatildaProtocolHelper::calcFileSha1(fsett.workDir + "/" + lastPath + "/" + s, ok);
                             if(!s.isEmpty()){
                                lfoundMac.append(fsett.macL.at(n));
                                lfoundSha1.append(sha1);

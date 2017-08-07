@@ -24,27 +24,32 @@
 #include "../matilda-bbb/moji_defy.h"
 #include <QJsonObject>
 #include <QtCore>
+#include "settloader4svaha.h"
 
 #include <QTimer>
+#include <QHostAddress>
+
 //---------------------------------------------------------------------------------
-Socket4uploadBackup::Socket4uploadBackup(QByteArray write4authorize, QObject *parent) : QTcpSocket(parent)
+Socket4uploadBackup::Socket4uploadBackup(const bool &verboseMode, QString write4authorizeBase64, QString lastSha1base64, QObject *parent) : QTcpSocket(parent)
 {
     matildaLogined = false;
     dataStreamVersion = QDataStream::Qt_DefaultCompiledVersion;
     stopAfter = false;
     stopAll = false;
     zombieRetr = 0;
-
-    this->write4authorize = write4authorize;
+    this->lastSha1base64 = lastSha1base64;
+    this->verboseMode = verboseMode;
+    this->write4authorizeBase64 = write4authorizeBase64;
     connect(this, SIGNAL(readyRead()), this, SLOT(mReadyRead()) );
     connect(this, SIGNAL(disconnected()), this, SLOT(onDisconn()) );
     if(bytesAvailable() > 0)
         QTimer::singleShot(11, this, SLOT(mReadyRead()) );
-
+    dtCreatedBackupUtc = QDateTime::currentDateTimeUtc();
 }
 
 
 //---------------------------------------------------------------------------------
+
 void Socket4uploadBackup::onDisconn()
 {
     emit iAmDisconn();
@@ -87,7 +92,7 @@ void Socket4uploadBackup::mReadyReadF()
 
 
         if(razivDuzkaL != razivDuzkaR || razivDuzkaL < 1){
-            qDebug()<< "readServer:"<< readarr;
+            if(verboseMode) qDebug()<< "readServer:"<< readarr;
             return ;
         }else{
             int duzkaIndx = readarr.indexOf("}");
@@ -101,7 +106,7 @@ void Socket4uploadBackup::mReadyReadF()
 
             }
         }
-        qDebug()<< "readServer2:"<< readAll();
+        if(verboseMode) qDebug()<< "readServer2:"<< readAll();
         return;
     }
 
@@ -122,7 +127,7 @@ void Socket4uploadBackup::mReadyReadF()
 
 
     if(bytesAvailable() < blockSize){
-        qDebug()<< "readServer:"<< bytesAvailable() << blockSize << readAll().toHex();
+        if(verboseMode) qDebug()<< "readServer:"<< bytesAvailable() << blockSize << readAll().toHex();
         return ;
     }
 
@@ -130,7 +135,7 @@ void Socket4uploadBackup::mReadyReadF()
 
     if(bytesAvailable() == blockSize){
 
-        qDebug() << "good byte " << bytesAvailable() << blockSize ;
+        if(verboseMode) qDebug() << "good byte " << bytesAvailable() << blockSize ;
         quint16 serverCommand;
         QVariant readVar;
 
@@ -139,27 +144,21 @@ void Socket4uploadBackup::mReadyReadF()
             decodeReadData(uncompressRead(readVar.toByteArray(), serverCommand, blockSize) , serverCommand);
         else{
             decodeReadData(readVar, serverCommand);
-             emit changeCounters( blockSize, -1, true);
         }
-        lastReadData = readVar;
-        lastServerCommand = serverCommand;
         stopAfter = false;
     }else{
         if(!inStrm.atEnd()){
             quint16 serverCommand;
             QVariant readVar;
-            qDebug() << "not good byte " << bytesAvailable() << blockSize ;
+            if(verboseMode) qDebug() << "not good byte " << bytesAvailable() << blockSize ;
 
             inStrm >> serverCommand >> readVar;
             if(serverCommand == COMMAND_COMPRESSED_PACKET)
                 decodeReadData(uncompressRead(readVar.toByteArray(), serverCommand, bytesAvailable()) , serverCommand);
             else{
                 decodeReadData(readVar, serverCommand);
-                emit changeCounters( blockSize, -1 , true);
 
             }
-            lastReadData = readVar;
-            lastServerCommand = serverCommand;
             stopAfter = false;
             QTimer::singleShot(1, this, SLOT(mReadyRead()) );
 
@@ -173,19 +172,19 @@ void Socket4uploadBackup::mReadyReadF()
 //---------------------------------------------------------------------------------
 void Socket4uploadBackup::decodeReadData(const QVariant &dataVar, const quint16 &command)
 {
-    if(COMMAND_READ_DATABASE_GET_VAL != command && COMMAND_READ_DATABASE != command && command != COMMAND_READ_METER_LIST_FRAMED && command != COMMAND_WRITE_DROP_TABLE){
+    if(verboseMode){
         qDebug() << QTime::currentTime().toString("hh:mm:ss.zzz") <<  " read:" << command;
-        qDebug() << "decodeReadData" << dataVar.isValid() ;//<< dataVar;
+        qDebug() << "Socket4uploadBackup decodeReadData" << dataVar.isValid() ;//<< dataVar;
     }
 
     if(!dataVar.isValid()){
-        qDebug() << "!dataVar.isValid";
+        qDebug() << "Socket4uploadBackup !dataVar.isValid";
         return;
     }
 
     zombieRetr = 0;
     if(command == COMMAND_I_AM_A_ZOMBIE){
-        qDebug() << "zombie echo" << peerAddress();
+        if(verboseMode) qDebug() << "zombie echo" << peerAddress();
 //        mWriteToSocket("", COMMAND_I_AM_A_ZOMBIE);
         return;
     }
@@ -193,7 +192,7 @@ void Socket4uploadBackup::decodeReadData(const QVariant &dataVar, const quint16 
     switch(command){
 
     case COMMAND_AUTHORIZE:{
-        qDebug() << "access = " << dataVar.toHash();
+        if(verboseMode)  qDebug() << "Socket4uploadBackup access = " << dataVar.toHash();
 
         QVariantHash h = dataVar.toHash();
 
@@ -201,16 +200,38 @@ void Socket4uploadBackup::decodeReadData(const QVariant &dataVar, const quint16 
 
         if(accessLevel == MTD_USER_BACKUP){
             hashAboutObj = h.value("ao").toHash();
-
-
+            backupArr.clear();
+            backupArrLen = 0;
+           mWriteToSocket(QVariantHash(), COMMAND_GET_CACHED_BACKUP);//start read
         }else{
             onDisconn();
         }
 
         return;}
 
-    }
+    case COMMAND_GET_CACHED_BACKUP:{
+        QVariantHash h = dataVar.toHash();
+        if(h.contains("t"))
+            backupArrLen = (qint32)h.value("t").toInt();
+        qint32 pos = h.value("i").toInt();
 
+        backupArr.append(h.value("d").toByteArray());
+        if(pos < 0 || !h.contains("d")){
+            //закінчено зчитування
+            if(backupArr.length() == backupArrLen && backupArrLen > 0){
+                saveBackupArrAsFile();
+            }
+            break;
+        }else{
+            h.clear();
+            h.insert("i", pos);
+            mWriteToSocket(h, COMMAND_GET_CACHED_BACKUP);
+        }
+
+        return;}
+
+    }
+    QTimer::singleShot(11, this, SLOT(onDisconn()));
 }
 //---------------------------------------------------------------------------------
 void Socket4uploadBackup::decodeReadDataJSON(const QByteArray &dataArr)
@@ -219,7 +240,7 @@ void Socket4uploadBackup::decodeReadDataJSON(const QByteArray &dataArr)
     QJsonDocument jDoc = QJsonDocument::fromJson( dataArr, &jErr);
 
     QVariantHash hash = jDoc.object().toVariantHash();
-    qDebug() << hash;
+    if(verboseMode) qDebug() << hash;
 
     quint16 command = hash.take("cmd").toUInt();
 
@@ -235,9 +256,10 @@ void Socket4uploadBackup::decodeReadDataJSON(const QByteArray &dataArr)
         }
     }
 
-    qDebug() << "decodeReadData" << command;
-    qDebug()  << jDoc.object();
-
+    if(verboseMode){
+        qDebug() << "decodeReadData" << command;
+        qDebug()  << jDoc.object();
+    }
     if(!messHshIsValid(jDoc.object(), dataArr)){
         onDisconn();
         return;
@@ -262,7 +284,7 @@ void Socket4uploadBackup::decodeReadDataJSON(const QByteArray &dataArr)
 
                     QJsonObject jObj;
                     jObj.insert("version", hash.value("version").toInt());
-                    jObj.insert("hsh", write4authorize);// QString(QCryptographicHash::hash(loginPasswd.at(0) + "\n" + dataArr + "\n" + loginPasswd.at(1), QCryptographicHash::Sha3_256).toBase64()));
+                    jObj.insert("hsh", write4authorizeBase64);// QString(QCryptographicHash::hash(loginPasswd.at(0) + "\n" + dataArr + "\n" + loginPasswd.at(1), QCryptographicHash::Sha3_256).toBase64()));
 //
                     //mode JSON and QDataStream
                     jObj.insert("QDS", QString::number(dataStreamVersion));//активація режиму QDataStream
@@ -279,7 +301,7 @@ void Socket4uploadBackup::decodeReadDataJSON(const QByteArray &dataArr)
         break;}
 
     case COMMAND_I_AM_A_ZOMBIE:{
-        qDebug() << "zombie echo" << peerAddress();
+        if(verboseMode) qDebug() << "zombie echo" << peerAddress();
 //        mWriteToSocket("", COMMAND_I_AM_A_ZOMBIE);
         return;}
 
@@ -298,13 +320,13 @@ bool Socket4uploadBackup::messHshIsValid(const QJsonObject &jObj, QByteArray rea
         if(jObj.contains(lh.at(i))){
             hshIndx = i;
             hshName = lh.at(i);
-            qDebug() << "hash is " << hshName;
+            if(verboseMode) qDebug() << "hash is " << hshName;
         }
     }
 
 
     if(hshIndx < 0){
-        qDebug() << "if(hshIndx < 0 " << hshIndx;
+        if(verboseMode) qDebug() << "if(hshIndx < 0 " << hshIndx;
         return false;
     }else{
         lastHashSumm = hshIndx;
@@ -312,15 +334,9 @@ bool Socket4uploadBackup::messHshIsValid(const QJsonObject &jObj, QByteArray rea
         QByteArray hshBase64;
         if(startIndx > 0){
             startIndx += hshName.length() + 4;
-            qDebug() << "hshName " << hshName << startIndx << readArr.mid(startIndx);
-
             int endIndx = readArr.indexOf("\"", startIndx + 1);
-            qDebug() << "endIndx " << endIndx << readArr.mid(endIndx);
-
             hshBase64 = readArr.mid(startIndx , endIndx - startIndx);
-            qDebug() << hshBase64;
             readArr = readArr.left(startIndx ) + "0" + readArr.mid(endIndx);
-            qDebug() << readArr;
 
         }
         if(hshBase64.isEmpty())
@@ -332,7 +348,7 @@ bool Socket4uploadBackup::messHshIsValid(const QJsonObject &jObj, QByteArray rea
         if(myHash == hshBase64){
             return true;
         }else{
-            qDebug() << "if(myHash != hshBase64 " << myHash.toBase64() << hshBase64.toBase64();
+            if(verboseMode) qDebug() << "if(myHash != hshBase64 " << myHash.toBase64() << hshBase64.toBase64();
             return false;
         }
     }
@@ -358,7 +374,7 @@ qint64 Socket4uploadBackup::mWrite2SocketJSON(QJsonObject jObj, const quint16 s_
         writeArr.chop(1);// remove }
     }
 
-    qDebug() << "writeArr0 " << writeArr;
+    if(verboseMode) qDebug() << "writeArr0 " << writeArr;
     switch(lastHashSumm){
     case 0: { writeArr.append(", \"Md4\":\""      + QCryptographicHash::hash( writeArr + ", \"Md4\":\"0\"}"     , QCryptographicHash::Md4     ).toBase64() + "\"}" ); break;}
     case 2: { writeArr.append(", \"Sha1\":\""     + QCryptographicHash::hash( writeArr + ", \"Sha1\":\"0\"}"    , QCryptographicHash::Sha1    ).toBase64() + "\"}" ); break;}
@@ -389,7 +405,7 @@ qint64 Socket4uploadBackup::mWrite2SocketJSON(QJsonObject jObj, const quint16 s_
             writeArr.chop(1);// remove }
         }
 
-        qDebug() << "writeArr1 comprs " << writeArr;
+        if(verboseMode) qDebug() << "writeArr1 comprs " << writeArr;
         switch(lastHashSumm){
         case 0: { writeArr.append(", \"Md4\":\""      + QCryptographicHash::hash( writeArr + ", \"Md4\":\"0\"}"     , QCryptographicHash::Md4     ).toBase64() + "\"}" ); break;}
         case 2: { writeArr.append(", \"Sha1\":\""     + QCryptographicHash::hash( writeArr + ", \"Sha1\":\"0\"}"    , QCryptographicHash::Sha1    ).toBase64() + "\"}" ); break;}
@@ -409,9 +425,10 @@ qint64 Socket4uploadBackup::mWrite2SocketJSON(QJsonObject jObj, const quint16 s_
 
     readAll();
     qint64 len = write(writeArr);
-    qDebug() << "writeJSON " << QTime::currentTime().toString("hh:mm:ss.zzz");
-    qDebug() << writeArr;
-
+    if(verboseMode){
+        qDebug() << "writeJSON " << QTime::currentTime().toString("hh:mm:ss.zzz");
+        qDebug() << writeArr;
+    }
     waitForBytesWritten(50);
 
     return len;
@@ -419,17 +436,16 @@ qint64 Socket4uploadBackup::mWrite2SocketJSON(QJsonObject jObj, const quint16 s_
 //---------------------------------------------------------------------------------
 QVariant Socket4uploadBackup::uncompressRead(QByteArray readArr, quint16 &command, qint64 lenBefore)
 {
-    qDebug() << "uncompress command=" << command << readArr.size();
+    if(verboseMode) qDebug() << "uncompress command=" << command << readArr.size() << lenBefore;
 
     readArr = qUncompress(readArr);
-     emit changeCounters( lenBefore, readArr.length() , true);
     QVariant readVar;
     QDataStream outUncompr(readArr);
     outUncompr.setVersion(dataStreamVersion); //Qt_4_0);
 
 
     outUncompr >> command >> readVar;
-    qDebug() << "uncompress command2=" << command << readArr.size();
+    if(verboseMode) qDebug() << "uncompress command2=" << command << readArr.size();
     return readVar;
 }
 //---------------------------------------------------------------------------------
@@ -464,7 +480,7 @@ QByteArray Socket4uploadBackup::varHash2arr(const QVariantHash &hash)
 void Socket4uploadBackup::mWriteToSocket(const QVariant s_data, const quint16 s_command)
 {
     if(!isOpen()){
-        qDebug() << "matildaclient::mWriteToSocket connIsDown " << QTime::currentTime().toString("hh:mm:ss.zzz") << isOpen() << state();
+        if(verboseMode) qDebug() << "matildaclient::mWriteToSocket connIsDown " << QTime::currentTime().toString("hh:mm:ss.zzz") << isOpen() << state();
         QTimer::singleShot(11, this, SLOT(onDisconn()));
         return;
     }
@@ -472,7 +488,7 @@ void Socket4uploadBackup::mWriteToSocket(const QVariant s_data, const quint16 s_
     stopAll = false;
 
     if(s_command == COMMAND_ERROR_CODE || s_command == COMMAND_ERROR_CODE_EXT){
-        qDebug() << "block write " << s_command << s_data;
+        if(verboseMode) qDebug() << "block write " << s_command << s_data;
         return;
     }
     QByteArray block;
@@ -503,16 +519,114 @@ void Socket4uploadBackup::mWriteToSocket(const QVariant s_data, const quint16 s_
         out << (quint32)0;
         out << (quint16)COMMAND_COMPRESSED_PACKET << QVariant(qCompress(blockUncompr,9));
         out.device()->seek(0);
-        qDebug() << "blSize " << blSize;
         quint32 blSize2 = block.size();
-        qDebug() << "blSize2 " << blSize2;
         out << (quint32)(blSize2 - sizeof(quint32));
     }
 
     qint64 len = write(block);
-    qDebug() << "write " << QTime::currentTime().toString("hh:mm:ss.zzz") << len << s_command;
-
+    if(verboseMode) qDebug() << "write " << QTime::currentTime().toString("hh:mm:ss.zzz") << len << s_command;
     waitForBytesWritten(50);
 
+}
+//---------------------------------------------------------------------------------
+void Socket4uploadBackup::saveBackupArrAsFile()
+{
+    if(lastSha1base64.isEmpty())
+        lastSha1base64 = QCryptographicHash::hash(backupArr, QCryptographicHash::Sha1).toBase64(QByteArray::OmitTrailingEquals);
+    if(lastSha1base64.isEmpty() || backupArr.isEmpty()){
+        if(verboseMode)
+            qDebug() << "noSha1=" << lastSha1base64.isEmpty() << ", noData=" << backupArr.isEmpty() << ", dataLen=" << backupArrLen;
+        return;
+    }
+
+    //create new backup
+    //<work dir>/<year>/<month>/<file names>  //UTC date time!!!
+    //file name <base64 sha1>_<mac(X)>_...other keys
+
+    QString workDir = SettLoader4svaha().loadOneSett(SETT_SYNC_WORKDIR).toString();
+    if(workDir.isEmpty()){
+        if(verboseMode)
+            qDebug() << "workDir is not valid " << workDir;
+        return;
+    }
+
+    workDir = QString("%1/%2/%3").arg(workDir).arg(dtCreatedBackupUtc.date().year()).arg(dtCreatedBackupUtc.date().month());
+    QDir dir(workDir);
+    if(!dir.exists())
+        dir.mkpath(workDir);
+
+    QString fileName = lastSha1base64 + "_" + fileNameFromAboutObject();
+    fileName = fileName.replace("/", "");
+
+    QSaveFile sFile(workDir + "/" + fileName);
+    if(sFile.open(QSaveFile::WriteOnly|QSaveFile::Unbuffered)){
+        sFile.write(backupArr);
+        if(sFile.commit()){
+            if(verboseMode)
+                qDebug() << "backup saved " << workDir << fileName ;
+
+            emit onSyncDone(lastSha1base64, dtCreatedBackupUtc);
+        }else{
+            if(verboseMode)
+                qDebug() << "can't save file " << workDir << fileName << sFile.errorString();
+        }
+    }
+
+}
+//---------------------------------------------------------------------------------
+QString Socket4uploadBackup::fileNameFromAboutObject()
+{
+    /*(if exists)
+     *
+     * SN <serial number>
+     * vrsn
+     * DEV
+     * app
+     * MAC<x>   0 < x < 10
+     *
+     * //gsm section
+     * IMEI
+     * IMSI
+     * CID
+     * BAND
+     * RSSI
+     * ATI
+     * RCSP
+     * Ec/No
+     *
+     * //zigbee
+     * ZCH
+     * ZID
+     * ZRSSI
+     * LQI
+     * VR
+     * HV
+     * Type
+     * ZEUI64
+     *
+*/
+
+//file name <base64 sha1>_<mac(X)>_...other keys
+    QStringList l;
+
+    for(int i = 0; i < 10; i++){
+        if(!hashAboutObj.value(QString("MAC%1").arg(i)).toString().isEmpty())
+            l.append(QString("MAC%1:").arg(i) + hashAboutObj.value(QString("MAC%1").arg(i)).toString());
+        else
+            break;
+    }
+
+    QStringList lk = QString("SN vrsn DEV app").split(" ");
+    lk.append(QString("IMEI IMSI CellID LAC RSSI RCSP ATI EcNo").split(" "));
+    lk.append(QString("ZCH,ZID,ZRSSI,LQI,VR,HV,Type,ZEUI64").split(","));
+
+    for(int i = 0, iMax = lk.size(); i < iMax; i++){
+        if(!hashAboutObj.value(lk.at(i)).toString().isEmpty())
+            l.append(lk.at(i) + ":" + hashAboutObj.value(lk.at(i)).toString());
+    }
+
+    if(verboseMode)
+        qDebug() << "fileNameFromAboutObject=" << l;
+    return l.join("_");
 }
 //---------------------------------------------------------------------------------

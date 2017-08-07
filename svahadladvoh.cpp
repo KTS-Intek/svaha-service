@@ -50,7 +50,7 @@ void SvahaDlaDvoh::incomingConnection(qintptr handle)
 {
     if(verboseMode)
         qDebug() << "inConn " << serverPort();
-    SocketProsto *socket = new SocketProsto;
+    SocketProsto *socket = new SocketProsto(this);
     connect(this, SIGNAL(stopAllNow()), socket, SLOT(onDisconn()) );
     if(!socket->setSocketDescriptor(handle) || connCounter > 1 ){
 

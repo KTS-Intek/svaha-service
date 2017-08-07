@@ -25,18 +25,22 @@
 
 #include <QObject>
 #include <QTcpSocket>
+#include <QDateTime>
+
 
 class Socket4uploadBackup : public QTcpSocket
 {
     Q_OBJECT
 public:
-    explicit Socket4uploadBackup(QByteArray write4authorize, QObject *parent = 0);
+    explicit Socket4uploadBackup(const bool &verboseMode, QString write4authorizeBase64, QString lastSha1base64, QObject *parent = 0);
 
 signals:
 
     void mReadData();
 
     void iAmDisconn();
+
+    void onSyncDone(QString lastSha1base64, QDateTime dtCreatedUtc);//на віддаленому пристрої ХЕШ сума файлу змінилась, завантаження здійснено
 
 public slots:
 
@@ -65,11 +69,19 @@ private:
     void mWriteToSocket(const QVariant s_data, const quint16 s_command);
 
 
+    void saveBackupArrAsFile();
+
+    QString fileNameFromAboutObject();
+
+
+    bool verboseMode;
 
     QString socketId;
-    QByteArray write4authorize;
+    QString write4authorizeBase64;
 
     QByteArray backupArr;
+    qint32 backupArrLen;
+    QDateTime dtCreatedBackupUtc;
 
     bool matildaLogined;
     int dataStreamVersion;
@@ -78,6 +90,9 @@ private:
     quint8 accessLevel;
 
     QVariantHash hashAboutObj;
+    QString lastSha1base64;
+
+
 
 };
 

@@ -44,6 +44,15 @@
 #define SETT_SVAHA_MAXIMUM_PENDING_CONN     11
 
 
+#define SETT_SYNC_WORKDIR                   12
+#define SETT_SYNC_MODE                      13
+#define SETT_SYNC_MAX_FILE_COUNT            14
+#define SETT_SYNC_MAX_SIZE_MAC_TABLE        15
+#define SETT_SYNC_MAX_COUNT_SHA1_CHRSPRLL   16
+#define SETT_SYNC_MAX_SIZE_SYNC_REQUEST     17
+#define SETT_SYNC_MAX_COUNT_SYNQ_RQSTPRLL   18
+
+
 
 typedef QHash<QString,QString> QStringHash;
 typedef QHash<QString, QStringHash> QStringHashHash;
@@ -88,7 +97,13 @@ public:
 
     static quint16 defSETT_SVAHA_MAXIMUM_PENDING_CONN();
 
-
+    static QString defSETT_SYNC_WORKDIR();
+    static quint8 defSETT_SYNC_MODE();
+    static quint32 defSETT_SYNC_MAX_FILE_COUNT();
+    static quint32 defSETT_SYNC_MAX_SIZE_MAC_TABLE();
+    static quint32 defSETT_SYNC_MAX_COUNT_SHA1_CHRSPRLL();
+    static quint32 defSETT_SYNC_MAX_SIZE_SYNC_REQUEST();
+    static quint32 defSETT_SYNC_MAX_COUNT_SYNQ_RQSTPRLL();
 
 
 signals:

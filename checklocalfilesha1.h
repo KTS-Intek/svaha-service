@@ -2,10 +2,10 @@
 #define CHECKLOCALFILESHA1_H
 
 #include <QObject>
+#include <QDateTime>
+#include <QList>
 
-#define DT_MODE_EVERY_DAY   1
-#define DT_MODE_EVERY_WEEK  2
-#define DT_MODE_EVERY_MONTH 3
+
 
 /*
  * 1. search for files with mac

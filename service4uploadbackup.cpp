@@ -2,14 +2,15 @@
 #include <QTimer>
 
 #include "settloader4svaha.h"
-
+#include "socket4uploadbackup.h"
 
 //----------------------------------------------------------------------------------
-Service4uploadBackup::Service4uploadBackup(quint8 backupSessionId, QObject *parent) : QTcpServer(parent)
+Service4uploadBackup::Service4uploadBackup(bool verboseMode, quint8 backupSessionId, QObject *parent) : QTcpServer(parent)
 {
+    this->verboseMode = verboseMode;
     this->backupSessionId = backupSessionId;
     setMaxPendingConnections(1);
-    QTimer::singleShot(12 * 60 * 60 * 1000, this, SLOT(onZombie()) );
+    QTimer::singleShot(12 * 60 * 60 * 1000, this, SLOT(onZombie()) );//відвожу час 12 годин
 }
 //----------------------------------------------------------------------------------
 quint16 Service4uploadBackup::findFreePort(quint16 minP, const quint16 &maxP)
@@ -22,53 +23,40 @@ quint16 Service4uploadBackup::findFreePort(quint16 minP, const quint16 &maxP)
     return 0;
 }
 //----------------------------------------------------------------------------------
-void Service4uploadBackup::setWrite4aut(QByteArray a)
+void Service4uploadBackup::setWrite4aut(QByteArray a, QString lastSha1Base64)
 {
+    if(verboseMode)
+        qDebug() << "setWrite4aut=" << a;
     write4auth = a;
+    this->lastSha1Base64 = lastSha1Base64;
 }
 //----------------------------------------------------------------------------------
 void Service4uploadBackup::incomingConnection(qintptr handle)
 {
     if(verboseMode)
-        qDebug() << "inConn " << serverPort();
-    SocketProsto *socket = new SocketProsto;
+        qDebug() << "Service4uploadBackup inConn " << serverPort();
+    Socket4uploadBackup *socket = new Socket4uploadBackup(verboseMode, write4auth, lastSha1Base64, this);
     connect(this, SIGNAL(stopAllNow()), socket, SLOT(onDisconn()) );
-    if(!socket->setSocketDescriptor(handle) || connCounter > 1 ){
-
+    if(!socket->setSocketDescriptor(handle) || connCounter > 0 ){
         if(verboseMode)
-            qDebug() << "SvahaDlaDvoh incomingConnection if(!socket->setSocketDescriptor(socketDescr)){" << socket->errorString() << socket->socketDescriptor() << socket->localAddress() << socket->peerAddress() << connCounter;
+            qDebug() << "Service4uploadBackup incomingConnection if(!socket->setSocketDescriptor(socketDescr)){" << socket->errorString() << socket->socketDescriptor() << socket->localAddress() << socket->peerAddress() << connCounter;
         socket->close();
         socket->deleteLater();
         return;
     }
-    if(verboseMode)
-        qDebug() << "SvahaDlaDvoh onNewConnection " << socket->peerAddress() << socket->peerName() << socket->peerPort();
-
     connCounter++;
-    if(connCounter == 1){//перший
-        connect(socket, SIGNAL(mReadData(QByteArray)), this, SIGNAL(data2Remote2(QByteArray)) );
-        connect(this, SIGNAL(data2Remote(QByteArray)), socket, SLOT(mWrite2socket(QByteArray)));
-        connect(this, SIGNAL(data2Remote2(QByteArray)), this, SLOT(add2TmpBuff(QByteArray)) );
-    }else{
-        disconnect(this, SIGNAL(data2Remote2(QByteArray)), this, SLOT(add2TmpBuff(QByteArray)) );
 
-        connect(socket, SIGNAL(mReadData(QByteArray)), this, SIGNAL(data2Remote(QByteArray)) );
-        connect(this, SIGNAL(data2Remote2(QByteArray)), socket, SLOT(mWrite2socket(QByteArray)));
+    if(verboseMode)
+        qDebug() << "Service4uploadBackup onNewConnection " << socket->peerAddress() << socket->peerName() << socket->peerPort();
 
-        if(!buffArr.isEmpty()){
-            socket->mWrite2socket(buffArr);
-//            emit data2Remote2(buffArr);
-            buffArr.clear();
-        }
-
-
-    }
-
+    connect(socket, SIGNAL(mReadData() ), this, SIGNAL(dataFromRemote()) );
     connect(socket, SIGNAL(iAmDisconn()), this, SLOT(onOneDisconn()) );
+    connect(socket, SIGNAL(onSyncDone(QString,QDateTime)), this, SLOT(syncDone(QString,QDateTime)) );
 }
 //----------------------------------------------------------------------------------
 void Service4uploadBackup::onThrdStarted()
 {
+
     connect(this, SIGNAL(destroyed(QObject*)), this, SLOT(onDestrSignl()) );
     SettLoader4svaha sLoader;
     QTimer *zombieTmr = new QTimer(this);
@@ -78,7 +66,11 @@ void Service4uploadBackup::onThrdStarted()
     connect(this, SIGNAL(dataFromRemote()), zombieTmr, SLOT(start()) );
     connect(zombieTmr, SIGNAL(timeout()), this, SLOT(onZombie()) );
     connect(this, SIGNAL(stopAllNow()), zombieTmr, SLOT(stop()) );
-    zombieTmr->start();
+
+    emit dataFromRemote();
+
+    if(verboseMode)
+        qDebug() << "Service4uploadBackup onThrd " ;
 
 }
 //----------------------------------------------------------------------------------
@@ -88,7 +80,7 @@ void Service4uploadBackup::onOneDisconn()
         return;
 
     if(verboseMode)
-        qDebug() << "SvahaDlaDvoh onOneDisconn ";
+        qDebug() << "Service4uploadBackup onOneDisconn ";
 
     connCounter = -1;
     onZombie();
@@ -97,7 +89,7 @@ void Service4uploadBackup::onOneDisconn()
 void Service4uploadBackup::onZombie()
 {
     if(verboseMode)
-        qDebug() << "SvahaDlaDvoh onZombie " ;
+        qDebug() << "Service4uploadBackup onZombie " ;
     connCounter = -1;
     close();
     emit stopAllNow();
@@ -111,5 +103,12 @@ void Service4uploadBackup::onDestrSignl()
 {
     emit onSyncServiceDestr(backupSessionId);
 
+}
+//----------------------------------------------------------------------------------
+void Service4uploadBackup::syncDone(QString lastSha1base64, QDateTime dtCreatedUtc)
+{
+
+    emit onSyncDone(backupSessionId, lastSha1base64, dtCreatedUtc);
+    QTimer::singleShot(55, this, SLOT(onZombie()) );
 }
 //----------------------------------------------------------------------------------

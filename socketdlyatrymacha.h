@@ -101,7 +101,7 @@ private slots:
 
 
 private:
-    quint16 startUploadBackup(const QString &serverIp);
+    quint16 startUploadBackup(const QString &serverIp, const QString &lastSha1base64);
 
     void mReadyReadF();
 

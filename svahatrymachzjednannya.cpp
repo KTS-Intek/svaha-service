@@ -55,13 +55,13 @@ bool SvahaTrymachZjednannya::startService()
         QThread *thread = new QThread(this);
         server->moveToThread(thread);
 
-        connect(server, SIGNAL(getHashRemoteIdAndDevId(QString, bool)), this, SLOT(getHashRemoteIdAndDevId(QString, bool)) );
-        connect(server, SIGNAL(removeCerverID(QString)), this, SLOT(removeCerverID(QString)) );
-        connect(server, SIGNAL(killClientNow(QString,bool)), this, SIGNAL(killClientNow(QString,bool)) );
+        connect(server, SIGNAL(getHashRemoteIdAndDevId(QString, bool))  , this, SLOT(getHashRemoteIdAndDevId(QString, bool)) );
+        connect(server, SIGNAL(removeCerverID(QString))                 , this, SLOT(removeCerverID(QString)) );
+        connect(server, SIGNAL(killClientNow(QString,bool))             , this, SIGNAL(killClientNow(QString,bool)) );
         connect(this, SIGNAL(remoteIdAndDevId(QStringHash,QStringHash,QStringHash,QString,QStringHashHash)), server, SIGNAL(remoteIdAndDevId(QStringHash,QStringHash,QStringHash,QString,QStringHashHash)) );
 
-        connect(server, SIGNAL(destroyed(QObject*)), thread, SLOT(quit()) );
-        connect(thread, SIGNAL(finished()), thread, SLOT(deleteLater()) );
+        connect(server, SIGNAL(destroyed(QObject*)), thread, SLOT(quit())        );
+        connect(thread, SIGNAL(finished())         , thread, SLOT(deleteLater()) );
 
         thread->start();
 
@@ -82,8 +82,10 @@ bool SvahaTrymachZjednannya::startService()
 
         connect(t, SIGNAL(started()), backup, SLOT(onThreadStarted()) );
 
-        connect(this, SIGNAL(onSyncRequestRemoteSha1isEqual(QStringList)), backup, SLOT(onSyncRequestRemoteSha1isEqual(QStringList)) );
+        connect(this, SIGNAL(onSyncRequestRemoteSha1isEqual(QStringList))        , backup, SLOT(onSyncRequestRemoteSha1isEqual(QStringList))         );
         connect(this, SIGNAL(onSyncFileDownloaded(QStringList,QString,QDateTime)), backup, SLOT(onSyncFileDownloaded(QStringList,QString,QDateTime)) );
+        connect(this, SIGNAL(onConnectedThisMacs(QStringList))                   , backup, SLOT(onConnectedThisMacs(QStringList))                    );
+        connect(this, SIGNAL(onDisconnectedThisMacs(QStringList,int))            , backup, SLOT(onDisconnectedThisMacs(QStringList,int))             );
 
         connect(backup, SIGNAL(checkBackup4thisMac(QString,QString)), this, SIGNAL(checkBackup4thisMac(QString,QString)) );
 
@@ -108,13 +110,15 @@ void SvahaTrymachZjednannya::addMyId2Hash(QString objId, QStringList mac, QStrin
         if( i == 0 )
             qDebug() << "hashObjIfo " << hashObjIfo;
     }
+    emit onConnectedThisMacs(mac);
     emit updateCerver();
 }
 
 //----------------------------------------------------------------------------------------------------------------------------
 void SvahaTrymachZjednannya::removeMyId2Hash(QStringList macList)
 {
-    for(int i = 0, iMax = macList.size(); i < iMax; i++){
+    int iMax = macList.size();
+    for(int i = 0; i < iMax; i++){
 
         qDebug() << "removeMyId2Hash" << macList.at(i) << hashMacDevId.value(macList.at(i)) << hashMacRemoteId.value(macList.at(i)) << hashMacAddTime.value(macList.at(i));
 
@@ -129,6 +133,7 @@ void SvahaTrymachZjednannya::removeMyId2Hash(QStringList macList)
         emit checkThisMac(macList.at(i));
 
     }
+    emit onDisconnectedThisMacs(macList, iMax);
     emit updateCerver();
 
 }
@@ -176,7 +181,7 @@ void SvahaTrymachZjednannya::connMe2ThisIdOrMac(QString macOrId, bool isMac, QSt
     qDebug() << "connMe2this" << list << macOrId << isMac << myRemoteId << id << mac << remSid;
     if(list.size() == 1){//знайдено одного унікального, виконую з’єднання з ним
 
-        SvahaDlaDvoh *server = new SvahaDlaDvoh;
+        SvahaDlaDvoh *server = new SvahaDlaDvoh(verboseOut);
         SettLoader4svaha sLoader;
         quint16 startPort = sLoader.loadOneSett(SETT_SVAHA_DATA_START_PORT).toUInt();
         quint16 endPort = startPort + sLoader.loadOneSett(SETT_SVAHA_DATA_PORT_COUNT).toUInt();
@@ -305,17 +310,23 @@ void SvahaTrymachZjednannya::incomingConnection(qintptr handle)
     connect(thread, SIGNAL(finished()), thread, SLOT(deleteLater()) );
     connect(thread, SIGNAL(started()), socket, SLOT(onThrdStarted()) );
 
-    connect(socket, SIGNAL(connMe2ThisIdOrMac(QString,bool,QString, QString)), this, SLOT(connMe2ThisIdOrMac(QString,bool,QString,QString)) );
+    connect(socket, SIGNAL(connMe2ThisIdOrMac(QString,bool,QString, QString))    , this, SLOT(connMe2ThisIdOrMac(QString,bool,QString,QString))      );
     connect(socket, SIGNAL(addMyId2Hash(QString,QStringList,QString,QStringHash)), this, SLOT(addMyId2Hash(QString,QStringList,QString,QStringHash)) );
-    connect(socket, SIGNAL(removeMyId2Hash(QStringList)), this, SLOT(removeMyId2Hash(QStringList)) );
+    connect(socket, SIGNAL(removeMyId2Hash(QStringList))                         , this, SLOT(removeMyId2Hash(QStringList))                          );
 
-    connect(this, SIGNAL(connMe2ThisIdOrMacSig(QStringList,QString)), socket, SLOT(connMe2ThisIdOrMacSlot(QStringList,QString)) );
-    connect(this, SIGNAL(startConn(QString,int,QString)), socket, SLOT(startConn(QString,int,QString)) );
-    connect(this, SIGNAL(startConn(QString,int,QString,QString,QString,QString)), socket, SLOT(startConn(QString,int,QString,QString,QString,QString)) );
-    connect(this, SIGNAL(onResourBusy(QString)), socket, SLOT(onResourBusy(QString)) );
-    connect(this, SIGNAL(checkThisMac(QString)), socket, SLOT(checkThisMac(QString)) );
-    connect(this, SIGNAL(killClientNow(QString,bool)), socket, SLOT(killClientNow(QString,bool)) );
 
+    connect(this, SIGNAL(connMe2ThisIdOrMacSig(QStringList,QString))            , socket, SLOT(connMe2ThisIdOrMacSlot(QStringList,QString))             );
+    connect(this, SIGNAL(startConn(QString,int,QString))                        , socket, SLOT(startConn(QString,int,QString))                          );
+    connect(this, SIGNAL(startConn(QString,int,QString,QString,QString,QString)), socket, SLOT(startConn(QString,int,QString,QString,QString,QString))  );
+    connect(this, SIGNAL(onResourBusy(QString))                                 , socket, SLOT(onResourBusy(QString))                                   );
+    connect(this, SIGNAL(checkThisMac(QString))                                 , socket, SLOT(checkThisMac(QString))                                   );
+    connect(this, SIGNAL(killClientNow(QString,bool))                           , socket, SLOT(killClientNow(QString,bool))                             );
+
+
+    connect(socket, SIGNAL(onSyncFileDownloaded(QStringList,QString,QDateTime)) , this, SIGNAL(onSyncFileDownloaded(QStringList,QString,QDateTime)) );
+    connect(socket, SIGNAL(onSyncRequestRemoteSha1isEqual(QStringList))         , this, SIGNAL(onSyncRequestRemoteSha1isEqual(QStringList))         );
+
+    connect(this, SIGNAL(checkBackup4thisMac(QString,QString)), socket, SLOT(checkBackup4thisMac(QString,QString)) );
 
     thread->start();
 

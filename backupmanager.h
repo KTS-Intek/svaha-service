@@ -4,8 +4,7 @@
 #include <QObject>
 #include <QtCore>
 
-#define MAX_MAC_INLIST      100
-#define MAX_MAC_GROUPS      10
+
 
 class BackUpManager : public QObject
 {
@@ -65,7 +64,7 @@ private:
     void removeMacFromSyncQueue(const QString &mac);
 
     QStringList removeOldConnections(QHash<qint64, QStringList> &hDateConnected2macLst, QHash<QString,qint64> &hConnectedMac2date, quint32 currConnCounter,
-                              const quint32 &maxConnSize, const QHash<QString, bool> &hAliveMacConn);
+                              const quint32 &maxConnSize, QHash<QString, bool> &hAliveMacConn);
 
     struct Mac2syncInfo{
         QDateTime dtLastSyncFile; //дата створення файлу резервної копії в локальній ФС
