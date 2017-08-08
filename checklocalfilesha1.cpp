@@ -18,7 +18,8 @@ void CheckLocalFileSha1::onThreadStarted()
 {
     QTime t;
     t.start();
-    startCheck();
+//    fsett.macL = fsett.macL.join("\n").toLower().split("\n");
+    startCheck();    
     qDebug() << "fs check time= " << t.elapsed() << fsett.macL.join(" ");
     deleteLater();
 }
@@ -26,7 +27,7 @@ void CheckLocalFileSha1::onThreadStarted()
 void CheckLocalFileSha1::startCheck()
 {
     //<work dir>/<year>/<month>/<file names>  //UTC date time!!!
-    //file name <base64 sha1>_<mac(X)>_...other keys
+    //file name <hex_low sha1>_<mac(X)>_...other keys
 
     QDir dir(fsett.workDir);
     if(!dir.exists())
@@ -37,7 +38,7 @@ void CheckLocalFileSha1::startCheck()
         QString pattern;
         QStringList patternl;
         for(int i = 0, iMax = fsett.macL.size(); i < iMax; i++)
-            patternl.append(QString("(?=.*MAC[\\d]:%1_)").arg(fsett.macL.at(i).toLower()));
+            patternl.append(QString("(?=.*MAC[\\d]:%1_)").arg(fsett.macL.at(i)));
         pattern = patternl.join("|");
         pattern.prepend("^");
         pattern.append(".*$");
@@ -45,6 +46,7 @@ void CheckLocalFileSha1::startCheck()
     }
 
     QDate dt = QDateTime::currentDateTimeUtc().date();
+    dt.setDate(dt.year(), dt.month(), 1);
     QDate dtMin = QDateTime(QDate(2017, 1, 1), QTime(0,0,0,0), Qt::UTC).date();
 
     QHash<QString,int> hMac2counter;
@@ -60,7 +62,7 @@ void CheckLocalFileSha1::startCheck()
         QString lastPath = QString("%1/%2/%3").arg(fsett.workDir).arg(dt.year()).arg(dt.month());
         dir.setPath(lastPath);
 
-        QStringList fileNames = dir.entryList(QDir::Files|QDir::NoDotAndDotDot|QDir::NoSymLinks|QDir::Readable, QDir::Time|QDir::Reversed);
+        QStringList fileNames = dir.entryList(QDir::Files|QDir::NoDotAndDotDot|QDir::NoSymLinks|QDir::Readable, QDir::Time);
         for(int i = 0, iMax = fileNames.size(); i < iMax && i < 1000000; i++){
             QString s = fileNames.at(i);
             if(s.contains(re)){
@@ -87,7 +89,7 @@ void CheckLocalFileSha1::startCheck()
                         }
 
                         int v = hMac2counter.value(fsett.macL.at(n), 0);
-                        if(v > fsett.maxFileCount){
+                        if(v >= fsett.maxFileCount){
                             //lRemovedMacs = appendThisMac2list(lRemovedMacs, s); //поки-що ігнорю, МАК будуть завжди постійними, і навряд чи будуть змінюватись
                             dir.remove(lastPath + "/" + s);
                         }else{
@@ -100,12 +102,13 @@ void CheckLocalFileSha1::startCheck()
             }
         }
 
-        switch(fsett.dtMode){
-        case DT_MODE_EVERY_DAY  : dt = dt.addDays(-1)  ; break;
-        case DT_MODE_EVERY_WEEK : dt = dt.addDays(-7)  ; break;
-        case DT_MODE_EVERY_MONTH: dt = dt.addMonths(-1); break;
-        default: dt = dtMin.addYears(-11); break;
-        }
+        dt = dt.addMonths(-1);
+//        switch(fsett.dtMode){
+//        case DT_MODE_EVERY_DAY  : dt = dt.addDays(-1)  ; break;
+//        case DT_MODE_EVERY_WEEK : dt = dt.addDays(-7)  ; break;
+//        case DT_MODE_EVERY_MONTH: dt = dt.addMonths(-1); break;
+//        default: dt = dtMin.addYears(-11); break;
+//        }
     }
 
     //Всі МАК адреси додаються до однієї таблиці, але з різними мітками дати, кому відправляти запит на синхронізацію вирішувати не тут

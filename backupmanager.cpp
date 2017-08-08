@@ -13,6 +13,9 @@ BackUpManager::BackUpManager(const bool &verboseMode, QObject *parent) : QObject
 //---------------------------------------------------------------------------------------------------
 void BackUpManager::onThreadStarted()
 {
+    if(verboseMode)
+        qDebug() << "BackUpManager::onThreadStarted() ";
+
     dtLastCheck = dt4check();
     reloadSettings();
 
@@ -57,7 +60,7 @@ void BackUpManager::onConnectedThisMacs(QStringList macL)
     bool hasNewMacs = false;
     qint64 dt = QDateTime::currentMSecsSinceEpoch();
 
-    for(int i = 0, counter = macL.size(); i < counter && i < MAX_MAC_INLIST; counter++){
+    for(int i = 0, iMax = macL.size(); i < iMax && i < MAX_MAC_INLIST; i++){
 
         if(hConnectedMac2date.contains(macL.at(i))){
             //такий мак уже є, його необхідно видалити з hDateConnected2macLst
@@ -151,7 +154,7 @@ void BackUpManager::appendMac2queueSyncRequest(QStringList macL, int counter)
 //у цих МАКів відсутні резервні копії в локальній ФС,
 //додаю їх у загальну чергу але дата - невідома
 
-    for(int i = 0; i < counter && MAX_MAC_INLIST; counter++){
+    for(int i = 0; i < counter && MAX_MAC_INLIST; i++){
         if(!hConnectedMac2date.contains(macL.at(i)))//якщо МАК був видалений з таблиці
             continue;
 
@@ -204,9 +207,13 @@ void BackUpManager::onCheckQueueSha1LocalFs()
 
     //відправка запиту на перевірку ХЕШ суми останньої резервної копії, якщо не збігається то має переслати сюди файл
     //  currSyncRequestCount;//current parallel requests count and wait4answerSyncQueue.size
+    if(syncRequestQueue.isEmpty())
+        syncRequestQueue = listKeys4hMac2syncInfo;
 
     for(quint32 currSyncRequestCount = wait4answerSyncQueue.size() ; currSyncRequestCount < syncSett.maxCountSyncRequestParallel && !syncRequestQueue.isEmpty(); ){
         QString mac = syncRequestQueue.takeFirst();
+        if(!hAliveMacConn.contains(mac) || wait4answerSyncQueue.contains(mac))
+            continue;
         QString lastSha1;
         if(isNeed2syncRequest(mac, dtLastCheck, lastSha1)){            
             wait4answerSyncQueue.insert(mac, true);
@@ -273,7 +280,7 @@ QDateTime BackUpManager::dt4check()
 {
     QDateTime dt = QDateTime::currentDateTimeUtc();
     switch(syncSett.syncMode){
-    case DT_MODE_EVERY_DAY  : dt = dt.addDays(-1)  ; break;
+    case DT_MODE_EVERY_DAY  : dt = dt.addSecs(-120); break;//for test only!!! dt.addDays(-1)  ; break;
     case DT_MODE_EVERY_WEEK : dt = dt.addDays(-7)  ; break;
     case DT_MODE_EVERY_MONTH: dt = dt.addMonths(-1); break;
     }
@@ -284,9 +291,9 @@ bool BackUpManager::isNeed2syncRequest(const QString &mac, const QDateTime &dt, 
 {
     Mac2syncInfo info = hMac2syncInfo.value(mac);
     lastSha1 = info.lastSha1base64;
-    if(info.dtSyncRequest.isValid() && info.dtSyncRequest.secsTo(dt) < (12 * 3600))
+    if(info.dtSyncRequest.isValid() && info.dtSyncRequest.secsTo(dt) < (-60)) //for test only!!! (12 * 3600))
         return false;//даю час на синхронізацію
-    return (!info.dtLastSyncFile.isValid() || info.dtLastSyncFile > dt);
+    return (!info.dtLastSyncFile.isValid() || info.dtLastSyncFile <= dt);
 }
 //---------------------------------------------------------------------------------------------------
 void BackUpManager::startCheckMacGroup(const QStringList &macL)

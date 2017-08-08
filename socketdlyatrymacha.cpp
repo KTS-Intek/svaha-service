@@ -351,7 +351,7 @@ quint16 SocketDlyaTrymacha::startUploadBackup(const QString &serverIp, const QSt
 
     }else{
         QThread *thread = new QThread(this);
-        server->setWrite4aut(QCryptographicHash::hash(QString("%1\n\t%2\n\t%3\n\tAnnet\n\t").arg(serverIp).arg(QString::number(svahaPort)).arg(lastSha1base64).toLocal8Bit(), QCryptographicHash::Sha3_256).toBase64(QByteArray::OmitTrailingEquals), lastSha1base64);
+        server->setWrite4aut(QCryptographicHash::hash(QString("%1\n\t%2\n\t%3\n\tAnnet\n\t").arg(QString::number(svahaPort)).arg(serverIp).arg(lastSha1base64).toLocal8Bit(), QCryptographicHash::Sha3_256).toBase64(QByteArray::OmitTrailingEquals), lastSha1base64);
 
         server->moveToThread(thread);
         connect(thread, SIGNAL(started()), server, SLOT(onThrdStarted()) );
@@ -551,7 +551,7 @@ void SocketDlyaTrymacha::decodeReadDataJSON(const QByteArray &readArr)
     case COMMAND_CHECK_BACKUP_FILE_HASH_SUMM:{
         if(verbouseMode)
             qDebug() << "COMMAND_CHECK_BACKUP_FILE_HASH_SUMM " << isMatildaDev << hash;
-        if(isMatildaDev != REM_DEV_MATILDA_UNKNWN){
+        if(isMatildaDev != REM_DEV_MATILDA_DEV){
             mWrite2SocketJSON(errCodeLastOperationJson(command, ERR_INCORRECT_REQUEST), COMMAND_ERROR_CODE);
             isMatildaDev = REM_DEV_MATILDA_UNKNWN;
             QTimer::singleShot(5555, this, SLOT(onDisconn()) );

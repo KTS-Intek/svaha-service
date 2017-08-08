@@ -120,7 +120,7 @@ QString SettLoader4svaha::valName4key(const int &key)
     case SETT_SYNC_MAX_SIZE_SYNC_REQUEST    : s = "sync-max-size-reqets"    ; break;
     case SETT_SYNC_MAX_COUNT_SYNQ_RQSTPRLL  : s = "sync-max-count-rqstprll" ; break;
     }
-    return "";
+    return s;
 }
 //----------------------------------------------------------------------------------------------------------------------------
 QVariant SettLoader4svaha::loadOneSett(const int key)

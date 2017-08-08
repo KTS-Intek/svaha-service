@@ -257,7 +257,7 @@ void Socket4uploadBackup::decodeReadDataJSON(const QByteArray &dataArr)
     }
 
     if(verboseMode){
-        qDebug() << "decodeReadData" << command;
+        qDebug() << "Socket4uploadBackup decodeReadData" << command;
         qDebug()  << jDoc.object();
     }
     if(!messHshIsValid(jDoc.object(), dataArr)){
@@ -532,7 +532,7 @@ void Socket4uploadBackup::mWriteToSocket(const QVariant s_data, const quint16 s_
 void Socket4uploadBackup::saveBackupArrAsFile()
 {
     if(lastSha1base64.isEmpty())
-        lastSha1base64 = QCryptographicHash::hash(backupArr, QCryptographicHash::Sha1).toBase64(QByteArray::OmitTrailingEquals);
+        lastSha1base64 = QCryptographicHash::hash(backupArr, QCryptographicHash::Sha1).toHex().toLower();// toBase64(QByteArray::OmitTrailingEquals);
     if(lastSha1base64.isEmpty() || backupArr.isEmpty()){
         if(verboseMode)
             qDebug() << "noSha1=" << lastSha1base64.isEmpty() << ", noData=" << backupArr.isEmpty() << ", dataLen=" << backupArrLen;
@@ -541,7 +541,7 @@ void Socket4uploadBackup::saveBackupArrAsFile()
 
     //create new backup
     //<work dir>/<year>/<month>/<file names>  //UTC date time!!!
-    //file name <base64 sha1>_<mac(X)>_...other keys
+    //file name <hex_low sha1>_<mac(X)>_...other keys
 
     QString workDir = SettLoader4svaha().loadOneSett(SETT_SYNC_WORKDIR).toString();
     if(workDir.isEmpty()){
@@ -556,7 +556,7 @@ void Socket4uploadBackup::saveBackupArrAsFile()
         dir.mkpath(workDir);
 
     QString fileName = lastSha1base64 + "_" + fileNameFromAboutObject();
-    fileName = fileName.replace("/", "");
+//    fileName = fileName.replace("/", "");
 
     QSaveFile sFile(workDir + "/" + fileName);
     if(sFile.open(QSaveFile::WriteOnly|QSaveFile::Unbuffered)){
@@ -570,6 +570,8 @@ void Socket4uploadBackup::saveBackupArrAsFile()
             if(verboseMode)
                 qDebug() << "can't save file " << workDir << fileName << sFile.errorString();
         }
+    }else{
+        qDebug() << "Socket4uploadBackup can't creat file " << fileName << sFile.errorString();
     }
 
 }
@@ -606,7 +608,7 @@ QString Socket4uploadBackup::fileNameFromAboutObject()
      *
 */
 
-//file name <base64 sha1>_<mac(X)>_...other keys
+//file name <hex_low sha1>_<mac(X)>_...other keys
     QStringList l;
 
     for(int i = 0; i < 10; i++){

@@ -51,6 +51,7 @@ bool SvahaTrymachZjednannya::startService()
 
         qRegisterMetaType<QStringHash>("QStringHash");
         qRegisterMetaType<QStringHashHash>("QStringHashHash");
+        qRegisterMetaType<QList<QDateTime> >("QList<QDateTime>");
 
         QThread *thread = new QThread(this);
         server->moveToThread(thread);
@@ -256,7 +257,7 @@ void SvahaTrymachZjednannya::reloadSettings()
     if(maxPendingConn < 30 )
         maxPendingConn = 30;
 
-    if((isListen && serverPort() != svahaServicePort) && (!isListen && !startService())){
+    if((isListen && serverPort() != svahaServicePort) || (!isListen && !startService())){
 
         QThread::msleep(111);
         close();
