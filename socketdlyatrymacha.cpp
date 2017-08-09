@@ -186,12 +186,13 @@ void SocketDlyaTrymacha::checkBackup4thisMac(QString mac, QString lastSha1base64
     }
 }
 //----------------------------------------------------------------------------------------------------------------------------
-void SocketDlyaTrymacha::onSyncDone(quint8 sessionId, QString lastSha1base64, QDateTime dtCreatedUtc)
+void SocketDlyaTrymacha::onSyncDone(quint8 sessionId, QStringList macL, QString lastSha1base64, QDateTime dtCreatedUtc)
 {
     if(verbouseMode)
         qDebug() << "SocketDlyaTrymacha::onSyncDone " << sessionId << backupSessionId << lastSha1base64 << dtCreatedUtc << this->lastSha1base64 << macL4backupManager;
     if(sessionId == backupSessionId) {
-
+        macL4backupManager.append(macL);
+        macL4backupManager.removeDuplicates();
         emit onSyncFileDownloaded(macL4backupManager, lastSha1base64, dtCreatedUtc);
         this->lastSha1base64 = lastSha1base64;
         macL4backupManager.clear();
@@ -359,7 +360,7 @@ quint16 SocketDlyaTrymacha::startUploadBackup(const QString &serverIp, const QSt
         connect(thread, SIGNAL(finished()), thread, SLOT(deleteLater()) );
 
         connect(this, SIGNAL(startTmrCheckRemoteSha1()), server, SLOT(onZombie()) );
-        connect(server, SIGNAL(onSyncDone(quint8,QString,QDateTime)), this, SLOT(onSyncDone(quint8,QString,QDateTime)) );
+        connect(server, SIGNAL(onSyncDone(quint8,QStringList,QString,QDateTime)), this, SLOT(onSyncDone(quint8,QStringList,QString,QDateTime)) );
         connect(server, SIGNAL(onSyncServiceDestr(quint8)), this, SLOT(onSyncServiceDestr(quint8)) );
 
         thread->start();
@@ -535,7 +536,7 @@ void SocketDlyaTrymacha::decodeReadDataJSON(const QByteArray &readArr)
             if(verbouseMode)
                 qDebug() << "zombie killer" << peerAddress() << mIden << timeZombie.elapsed() / 1000;
             if(hash.contains("ao"))//періодично мені відправляються дані по пристрою
-                emit infoAboutObj(myRemoteIpAndDescr, getObjIfo(hash.value("ao").toMap(), false));
+                emit infoAboutObj(mMac, getObjIfo(hash.value("ao").toMap(), false), mMac.size());
 
 
 
@@ -560,7 +561,7 @@ void SocketDlyaTrymacha::decodeReadDataJSON(const QByteArray &readArr)
 
 
         if(hash.value("hshChngd", true).toBool()){
-            emit infoAboutObj(myRemoteIpAndDescr, getObjIfo(hash.value("ao").toMap(), false));
+            emit infoAboutObj(mMac, getObjIfo(hash.value("ao").toMap(), false), mMac.size());
 
 
             QString serverIp = SettLoader4svaha().loadOneSett(SETT_MATILDA_DEV_IP).toString();

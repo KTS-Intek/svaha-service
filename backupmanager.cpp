@@ -3,6 +3,7 @@
 #include "checklocalfilesha1.h"
 
 #include "svahadefine.h"
+#include "oldbackupcleaner.h"
 
 //---------------------------------------------------------------------------------------------------
 BackUpManager::BackUpManager(const bool &verboseMode, QObject *parent) : QObject(parent)
@@ -16,14 +17,32 @@ void BackUpManager::onThreadStarted()
     if(verboseMode)
         qDebug() << "BackUpManager::onThreadStarted() ";
 
-    dtLastCheck = dt4check();
+    if(true){
+        QDateTime d;
+        dtLastCheck = dt4check(d);
+    }
     reloadSettings();
 
-    QTimer *tmrQueue = new QTimer(this);
-    tmrQueue->setSingleShot(true);
-    connect(tmrQueue, SIGNAL(timeout()), this, SLOT(onCheckQueueSha1LocalFs()) );
-    connect(this, SIGNAL(tmrQueueStart(int)), tmrQueue, SLOT(start(int)) );
-    emit tmrQueueStart(111);
+    if(true){
+        QTimer *tmrQueue = new QTimer(this);
+        tmrQueue->setSingleShot(true);
+        connect(tmrQueue, SIGNAL(timeout()), this, SLOT(onCheckQueueSha1LocalFs()) );
+        connect(this, SIGNAL(tmrQueueStart(int)), tmrQueue, SLOT(start(int)) );
+        emit tmrQueueStart(111);
+    }
+
+    if(true){
+        OldBackupCleaner *c = new OldBackupCleaner(syncSett.maxYearSave, syncSett.maxFileCount, syncSett.minUniqMacs, syncSett.workDir);
+        QThread *t = new QThread(this);
+        c->moveToThread(t);
+
+        connect(t, SIGNAL(started()), c, SLOT(onThreadStarted()) );
+
+        connect(this, SIGNAL(checkRemovedMacs(QStringList,int)), c, SLOT(checkRemovedMacs(QStringList,int)) );
+        connect(this, SIGNAL(setMaxSett(qint32,qint32,qint32,QString)), c, SLOT(setMaxSett(qint32,qint32,qint32,QString)) );
+
+        t->start();
+    }
 }
 //---------------------------------------------------------------------------------------------------
 void BackUpManager::reloadSettings()
@@ -49,6 +68,11 @@ void BackUpManager::reloadSettings()
     syncSett.maxCountSha1LocalFsParallel = sLoader.loadOneSett(SETT_SYNC_MAX_COUNT_SHA1_CHRSPRLL).toUInt();
     syncSett.maxSizeSyncRequest = sLoader.loadOneSett(SETT_SYNC_MAX_SIZE_SYNC_REQUEST).toInt();
     syncSett.maxCountSyncRequestParallel = sLoader.loadOneSett(SETT_SYNC_MAX_COUNT_SYNQ_RQSTPRLL).toUInt();
+
+    syncSett.maxYearSave = sLoader.loadOneSett(SETT_SYNC_MAX_YEAR_SAVE).toInt();
+    syncSett.minUniqMacs = sLoader.loadOneSett(SETT_SYNC_MIN_UNIQ_MAC_FILES).toInt();
+
+    emit setMaxSett(syncSett.maxYearSave, syncSett.maxFileCount, syncSett.minUniqMacs, syncSett.workDir );
 
 }
 //---------------------------------------------------------------------------------------------------
@@ -177,7 +201,8 @@ void BackUpManager::appendMac2queueSyncRequest(QStringList macL, int counter)
 void BackUpManager::onCheckQueueSha1LocalFs()
 {
     int msec = 111;
-    dtLastCheck = dt4check();
+    QDateTime currDtUtc;
+    dtLastCheck = dt4check(currDtUtc);
 
 //перевіряю чергу на сканування резервних копій в локальній ФС
     QStringList macGroupList;
@@ -215,7 +240,7 @@ void BackUpManager::onCheckQueueSha1LocalFs()
         if(!hAliveMacConn.contains(mac) || wait4answerSyncQueue.contains(mac))
             continue;
         QString lastSha1;
-        if(isNeed2syncRequest(mac, dtLastCheck, lastSha1)){            
+        if(isNeed2syncRequest(mac, dtLastCheck, currDtUtc, lastSha1)){
             wait4answerSyncQueue.insert(mac, true);
             currSyncRequestCount++;
             emit checkBackup4thisMac(mac, lastSha1);
@@ -257,7 +282,8 @@ void BackUpManager::onSyncRequestRemoteSha1isEqual(QStringList macL)
 //---------------------------------------------------------------------------------------------------
 void BackUpManager::onSyncFileDownloaded(QStringList macL, QString lastSha1base64, QDateTime dtCreatedUtc)
 {
-    for(int i = 0, iMax = macL.size(); i < iMax; i++){
+    int iMax = macL.size();
+    for(int i = 0; i < iMax; i++){
         wait4answerSyncQueue.remove(macL.at(i));
         syncRequestQueue.removeOne(macL.at(i));
 
@@ -273,25 +299,27 @@ void BackUpManager::onSyncFileDownloaded(QStringList macL, QString lastSha1base6
         info.dtLastSyncFile = dtCreatedUtc;
         hMac2syncInfo.insert(macL.at(i), info);
     }
+
+    emit checkRemovedMacs(macL, iMax);
 }
 
 //---------------------------------------------------------------------------------------------------
-QDateTime BackUpManager::dt4check()
+QDateTime BackUpManager::dt4check(QDateTime &currDtUtc)
 {
-    QDateTime dt = QDateTime::currentDateTimeUtc();
+    QDateTime dt = currDtUtc = QDateTime::currentDateTimeUtc();
     switch(syncSett.syncMode){
-    case DT_MODE_EVERY_DAY  : dt = dt.addSecs(-120); break;//for test only!!! dt.addDays(-1)  ; break;
-    case DT_MODE_EVERY_WEEK : dt = dt.addDays(-7)  ; break;
-    case DT_MODE_EVERY_MONTH: dt = dt.addMonths(-1); break;
+    case DT_MODE_EVERY_DAY  : dt = currDtUtc.addSecs(-10800); break; // addDays(-1)  ; break;
+    case DT_MODE_EVERY_WEEK : dt = currDtUtc.addDays(-7)  ; break;
+    case DT_MODE_EVERY_MONTH: dt = currDtUtc.addMonths(-1); break;
     }
     return dt;
 }
 //---------------------------------------------------------------------------------------------------
-bool BackUpManager::isNeed2syncRequest(const QString &mac, const QDateTime &dt, QString &lastSha1)
+bool BackUpManager::isNeed2syncRequest(const QString &mac, const QDateTime &dt, const QDateTime &currDtUtc, QString &lastSha1)
 {
     Mac2syncInfo info = hMac2syncInfo.value(mac);
     lastSha1 = info.lastSha1base64;
-    if(info.dtSyncRequest.isValid() && info.dtSyncRequest.secsTo(dt) < (-60)) //for test only!!! (12 * 3600))
+    if(info.dtSyncRequest.isValid() && info.dtSyncRequest.secsTo(currDtUtc) < (12 * 3600))
         return false;//даю час на синхронізацію
     return (!info.dtLastSyncFile.isValid() || info.dtLastSyncFile <= dt);
 }
@@ -310,6 +338,7 @@ void BackUpManager::startCheckMacGroup(const QStringList &macL)
     connect(c, SIGNAL(appendMac2queueSyncRequest(QStringList,int))                      , this, SLOT(appendMac2queueSyncRequest(QStringList,int))                       );
     connect(c, SIGNAL(setLocalMacDateSha1(QStringList,QStringList,QList<QDateTime>,int)), this, SLOT(setLocalMacDateSha1(QStringList,QStringList,QList<QDateTime>,int)) );
 
+    connect(c, SIGNAL(checkRemovedMacs(QStringList,int))                                , this, SIGNAL(checkRemovedMacs(QStringList,int))                               );
     t->start();
 
 }

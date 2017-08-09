@@ -54,8 +54,8 @@ void CheckLocalFileSha1::startCheck()
     QStringList lfoundSha1;
     QList<QDateTime> dtCreatedUtcL;
     int counter = 0;
-
-    QStringList lRemovedMacs;
+    QStringList lCheckMac4remove;
+    int counterCheckRemoveMacs = 0;
 
     for(int j = 0, nMax = fsett.macL.size(); dt > dtMin && j < 10000; j++){
 
@@ -90,8 +90,10 @@ void CheckLocalFileSha1::startCheck()
 
                         int v = hMac2counter.value(fsett.macL.at(n), 0);
                         if(v >= fsett.maxFileCount){
-                            //lRemovedMacs = appendThisMac2list(lRemovedMacs, s); //поки-що ігнорю, МАК будуть завжди постійними, і навряд чи будуть змінюватись
-                            dir.remove(lastPath + "/" + s);
+                            if(!lCheckMac4remove.contains(fsett.macL.at(n))){
+                                lCheckMac4remove.append(fsett.macL.at(n));
+                                counterCheckRemoveMacs++;
+                            }
                         }else{
                             v++;
                             hMac2counter.insert(fsett.macL.at(n), v);
@@ -125,6 +127,8 @@ void CheckLocalFileSha1::startCheck()
     if(!macs.isEmpty())//МАК адреси що не мають даних по синхронізації за обраний період
         emit appendMac2queueSyncRequest(macs, macs.size());
 
+    if(counterCheckRemoveMacs > 0)
+        emit checkRemovedMacs(lCheckMac4remove, counterCheckRemoveMacs);
 
 
 //    if(!lRemovedMacs.isEmpty()) //якщо видаляю по старості, то значить мають буди якісь дані
@@ -135,17 +139,19 @@ void CheckLocalFileSha1::startCheck()
 QStringList CheckLocalFileSha1::appendThisMac2list(QStringList oldMacList, const QString &fileName)
 {
     //<MACx:90:90:90>_
-    //MAC0:01:02:03:04:05:06:07:08_MAC1:10:20:30:40:50:60:70:80_ID:LALA
-    QStringList l = fileName.split("MAC:", QString::SkipEmptyParts);
-    for(int i = 0, iMax = l.size(); i < iMax; i++){
-        QString s = l.at(i);
+    //*_MAC0:01:02:03:04:05:06:07:08_MAC1:10:20:30:40:50:60:70:80_ID:LALA
+    QStringList l = fileName.split("MAC", QString::SkipEmptyParts);
+    for(int i = 1, iMax = l.size(); i < iMax; i++){
+        QString s = l.at(i);        
         if(s.right(1) == "_"){
             s.chop(1);
+            s = s.mid(2);
             if(!oldMacList.contains(s))
                 oldMacList.append(s);
         }else{
             if(s.contains("_")){
                 s = s.left(s.indexOf("_"));
+                s = s.mid(2);
                 if(!oldMacList.contains(s))
                     oldMacList.append(s);
             }

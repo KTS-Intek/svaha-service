@@ -26,7 +26,7 @@ signals:
     void onSyncServiceDestr(quint8 sessionId);
 
 
-    void onSyncDone(quint8 sessionId, QString lastSha1base64, QDateTime dtCreatedUtc);//на віддаленому пристрої ХЕШ сума файлу змінилась, завантаження здійснено
+    void onSyncDone(quint8 sessionId, QStringList macL, QString lastSha1base64, QDateTime dtCreatedUtc);//на віддаленому пристрої ХЕШ сума файлу змінилась, завантаження здійснено
 
 
 protected:
@@ -40,7 +40,7 @@ public slots:
 
     void onDestrSignl();
 
-    void syncDone(QString lastSha1base64, QDateTime dtCreatedUtc);//на віддаленому пристрої ХЕШ сума файлу змінилась, завантаження здійснено
+    void syncDone(QStringList macL, QString lastSha1base64, QDateTime dtCreatedUtc);//на віддаленому пристрої ХЕШ сума файлу змінилась, завантаження здійснено
 
 
 private:

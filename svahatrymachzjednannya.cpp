@@ -291,6 +291,16 @@ void SvahaTrymachZjednannya::initObjects()
     emit tmrReloadSettStart();
 
 }
+//----------------------------------------------------------------------------------------------------------------------------
+void SvahaTrymachZjednannya::infoAboutObj(QStringList macL, QStringHash objIfo, int counter)
+{
+    for(int i = 0; i < counter; i++){
+        if(!hashMac2objectIfo.contains(macL.at(i)))
+            continue;
+        hashMac2objectIfo.insert(macL.at(i), objIfo);
+    }
+    emit updateCerver();
+}
 
 //----------------------------------------------------------------------------------------------------------------------------
 void SvahaTrymachZjednannya::incomingConnection(qintptr handle)
@@ -314,7 +324,7 @@ void SvahaTrymachZjednannya::incomingConnection(qintptr handle)
     connect(socket, SIGNAL(connMe2ThisIdOrMac(QString,bool,QString, QString))    , this, SLOT(connMe2ThisIdOrMac(QString,bool,QString,QString))      );
     connect(socket, SIGNAL(addMyId2Hash(QString,QStringList,QString,QStringHash)), this, SLOT(addMyId2Hash(QString,QStringList,QString,QStringHash)) );
     connect(socket, SIGNAL(removeMyId2Hash(QStringList))                         , this, SLOT(removeMyId2Hash(QStringList))                          );
-
+    connect(socket, SIGNAL(infoAboutObj(QStringList,QStringHash,int))            , this, SLOT(infoAboutObj(QStringList,QStringHash,int))             );
 
     connect(this, SIGNAL(connMe2ThisIdOrMacSig(QStringList,QString))            , socket, SLOT(connMe2ThisIdOrMacSlot(QStringList,QString))             );
     connect(this, SIGNAL(startConn(QString,int,QString))                        , socket, SLOT(startConn(QString,int,QString))                          );

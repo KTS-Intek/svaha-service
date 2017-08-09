@@ -86,6 +86,8 @@ public slots:
 
     void initObjects();
 
+    void infoAboutObj(QStringList macL, QStringHash objIfo, int counter);
+
 
 
 protected:

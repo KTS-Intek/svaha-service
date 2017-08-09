@@ -51,7 +51,7 @@ void Service4uploadBackup::incomingConnection(qintptr handle)
 
     connect(socket, SIGNAL(mReadData() ), this, SIGNAL(dataFromRemote()) );
     connect(socket, SIGNAL(iAmDisconn()), this, SLOT(onOneDisconn()) );
-    connect(socket, SIGNAL(onSyncDone(QString,QDateTime)), this, SLOT(syncDone(QString,QDateTime)) );
+    connect(socket, SIGNAL(onSyncDone(QStringList,QString,QDateTime)), this, SLOT(syncDone(QStringList,QString,QDateTime)) );
 }
 //----------------------------------------------------------------------------------
 void Service4uploadBackup::onThrdStarted()
@@ -105,10 +105,10 @@ void Service4uploadBackup::onDestrSignl()
 
 }
 //----------------------------------------------------------------------------------
-void Service4uploadBackup::syncDone(QString lastSha1base64, QDateTime dtCreatedUtc)
+void Service4uploadBackup::syncDone(QStringList macL, QString lastSha1base64, QDateTime dtCreatedUtc)
 {
 
-    emit onSyncDone(backupSessionId, lastSha1base64, dtCreatedUtc);
+    emit onSyncDone(backupSessionId, macL, lastSha1base64, dtCreatedUtc);
     QTimer::singleShot(55, this, SLOT(onZombie()) );
 }
 //----------------------------------------------------------------------------------

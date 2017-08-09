@@ -33,6 +33,7 @@
 Socket4uploadBackup::Socket4uploadBackup(const bool &verboseMode, QString write4authorizeBase64, QString lastSha1base64, QObject *parent) : QTcpSocket(parent)
 {
     matildaLogined = false;
+    serverAuthDone = false;
     dataStreamVersion = QDataStream::Qt_DefaultCompiledVersion;
     stopAfter = false;
     stopAll = false;
@@ -197,11 +198,13 @@ void Socket4uploadBackup::decodeReadData(const QVariant &dataVar, const quint16 
         QVariantHash h = dataVar.toHash();
 
         accessLevel = h.value("a").toUInt();
+        QByteArray serviceAccessKey = QCryptographicHash::hash("$Try2Annet$\t\n\r "+ write4authorizeBase64.toLocal8Bit() + " \r\n\t$Try2Annet$", QCryptographicHash::Sha3_256);
 
-        if(accessLevel == MTD_USER_BACKUP){
+        if(accessLevel == MTD_USER_BACKUP && serviceAccessKey == h.value("sak").toByteArray()){
             hashAboutObj = h.value("ao").toHash();
             backupArr.clear();
             backupArrLen = 0;
+            serverAuthDone = true;
            mWriteToSocket(QVariantHash(), COMMAND_GET_CACHED_BACKUP);//start read
         }else{
             onDisconn();
@@ -210,6 +213,10 @@ void Socket4uploadBackup::decodeReadData(const QVariant &dataVar, const quint16 
         return;}
 
     case COMMAND_GET_CACHED_BACKUP:{
+        if(!serverAuthDone){
+            onDisconn();
+            return;
+        }
         QVariantHash h = dataVar.toHash();
         if(h.contains("t"))
             backupArrLen = (qint32)h.value("t").toInt();
@@ -555,7 +562,8 @@ void Socket4uploadBackup::saveBackupArrAsFile()
     if(!dir.exists())
         dir.mkpath(workDir);
 
-    QString fileName = lastSha1base64 + "_" + fileNameFromAboutObject();
+    QStringList macL;
+    QString fileName = lastSha1base64 + "_" + fileNameFromAboutObject(macL);
 //    fileName = fileName.replace("/", "");
 
     QSaveFile sFile(workDir + "/" + fileName);
@@ -565,7 +573,7 @@ void Socket4uploadBackup::saveBackupArrAsFile()
             if(verboseMode)
                 qDebug() << "backup saved " << workDir << fileName ;
 
-            emit onSyncDone(lastSha1base64, dtCreatedBackupUtc);
+            emit onSyncDone(macL, lastSha1base64, dtCreatedBackupUtc);
         }else{
             if(verboseMode)
                 qDebug() << "can't save file " << workDir << fileName << sFile.errorString();
@@ -576,10 +584,10 @@ void Socket4uploadBackup::saveBackupArrAsFile()
 
 }
 //---------------------------------------------------------------------------------
-QString Socket4uploadBackup::fileNameFromAboutObject()
+QString Socket4uploadBackup::fileNameFromAboutObject(QStringList &macL)
 {
     /*(if exists)
-     *
+     * ID
      * SN <serial number>
      * vrsn
      * DEV
@@ -609,22 +617,56 @@ QString Socket4uploadBackup::fileNameFromAboutObject()
 */
 
 //file name <hex_low sha1>_<mac(X)>_...other keys
-    QStringList l;
 
+    QVariantHash hashAboutObj = this->hashAboutObj;
+    //make some optimisation
+    if(hashAboutObj.contains("ID") && hashAboutObj.value("ID").toString().length() > 50)
+        hashAboutObj.insert("ID", hashAboutObj.value("ID").toString().left(50));
+
+    if(hashAboutObj.contains("RSSI"))
+        hashAboutObj.insert("RSSI", hashAboutObj.value("RSSI").toString().split("_").first());
+
+    if(hashAboutObj.contains("RCSP"))
+        hashAboutObj.insert("RCSP", hashAboutObj.value("RCSP").toString().split("_").first());
+
+    if(hashAboutObj.contains("ZID"))
+        hashAboutObj.insert("ZID", hashAboutObj.value("ZID").toString().mid(2));
+
+    if(hashAboutObj.contains("ZCH"))
+        hashAboutObj.insert("ZCH", hashAboutObj.value("ZCH").toString().split("_").last().mid(2));
+
+    if(hashAboutObj.contains("ZRSSI"))
+        hashAboutObj.insert("ZRSSI", hashAboutObj.value("ZRSSI").toString().split("_").first());
+
+    if(hashAboutObj.contains("Type"))
+        hashAboutObj.insert("Type", hashAboutObj.value("Type").toString().left(1));
+
+    QStringList l;
+    macL.clear();
     for(int i = 0; i < 10; i++){
-        if(!hashAboutObj.value(QString("MAC%1").arg(i)).toString().isEmpty())
-            l.append(QString("MAC%1:").arg(i) + hashAboutObj.value(QString("MAC%1").arg(i)).toString());
-        else
+        if(!hashAboutObj.value(QString("MAC%1").arg(i)).toString().isEmpty()){
+            macL.append(hashAboutObj.value(QString("MAC%1").arg(i)).toString());
+            l.append(QString("MAC%1:").arg(i) + macL.last());
+        }else
             break;
     }
 
-    QStringList lk = QString("SN vrsn DEV app").split(" ");
-    lk.append(QString("IMEI IMSI CellID LAC RSSI RCSP ATI EcNo").split(" "));
-    lk.append(QString("ZCH,ZID,ZRSSI,LQI,VR,HV,Type,ZEUI64").split(","));
+    QStringList lk = QString("ID SN vrsn DEV app").split(" ");
+    lk.append(QString("IMEI IMSI CellID LAC").split(" "));
+    lk.append(QString("ZCH ZID ZEUI64").split(" "));
 
+    lk.append(QString("RSSI RCSP ATI EcNo ZRSSI LQI VR HV Type").split(" "));//Low priority
+    int fileNameLen = 42;//sha1 hex len
     for(int i = 0, iMax = lk.size(); i < iMax; i++){
-        if(!hashAboutObj.value(lk.at(i)).toString().isEmpty())
+        if(!hashAboutObj.value(lk.at(i)).toString().isEmpty()){
             l.append(lk.at(i) + ":" + hashAboutObj.value(lk.at(i)).toString());
+            fileNameLen += l.last().length();
+            fileNameLen++;
+            if(fileNameLen > 254){//ext4 max file name len 255 byte
+                l.takeLast();
+                break;
+            }
+        }
     }
 
     if(verboseMode)

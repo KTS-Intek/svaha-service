@@ -40,7 +40,7 @@ signals:
 
     void iAmDisconn();
 
-    void onSyncDone(QString lastSha1base64, QDateTime dtCreatedUtc);//на віддаленому пристрої ХЕШ сума файлу змінилась, завантаження здійснено
+    void onSyncDone(QStringList macL, QString lastSha1base64, QDateTime dtCreatedUtc);//на віддаленому пристрої ХЕШ сума файлу змінилась, завантаження здійснено
 
 public slots:
 
@@ -71,7 +71,7 @@ private:
 
     void saveBackupArrAsFile();
 
-    QString fileNameFromAboutObject();
+    QString fileNameFromAboutObject(QStringList &macL);
 
 
     bool verboseMode;
@@ -91,6 +91,8 @@ private:
 
     QVariantHash hashAboutObj;
     QString lastSha1base64;
+
+    bool serverAuthDone;
 
 
 

@@ -54,7 +54,7 @@ signals:
     void connMe2ThisIdOrMac(QString, bool, QString, QString);//mac or id, isMacMode, socket id
 
     void showMess(QString);
-    void infoAboutObj(QString remIpDescr, QStringHash objIfo);
+    void infoAboutObj(QStringList macL, QStringHash objIfo, int counter);
 
 
     //BackUpManager
@@ -84,7 +84,7 @@ public slots:
     //BackUpManager
     void checkBackup4thisMac(QString mac, QString lastSha1base64);//check SHA1 for last backup file and if not equal: create new backup (check settings before this)  and upload to service
 
-    void onSyncDone(quint8 sessionId, QString lastSha1base64, QDateTime dtCreatedUtc);//на віддаленому пристрої ХЕШ сума файлу змінилась, завантаження здійснено
+    void onSyncDone(quint8 sessionId, QStringList macL, QString lastSha1base64, QDateTime dtCreatedUtc);//на віддаленому пристрої ХЕШ сума файлу змінилась, завантаження здійснено
 
     void onSyncServiceDestr(quint8 sessionId);
 

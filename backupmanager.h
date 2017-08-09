@@ -20,6 +20,11 @@ signals:
     void tmrQueueStart(int msec);
 
 
+    void checkRemovedMacs(QStringList macL, int counter);
+
+    void setMaxSett(qint32 maxYearSave, qint32 maxMacsSave, qint32 minUniqNumb, QString workDir);
+
+
 
 public slots:
     void onThreadStarted();
@@ -53,9 +58,9 @@ public slots:
 
 
 private:
-    QDateTime dt4check();
+    QDateTime dt4check(QDateTime &currDtUtc);
 
-    bool isNeed2syncRequest(const QString &mac, const QDateTime &dt, QString &lastSha1);
+    bool isNeed2syncRequest(const QString &mac, const QDateTime &dt, const QDateTime &currDtUtc, QString &lastSha1);
 
     void startCheckMacGroup(const QStringList &macL);
 
@@ -85,6 +90,8 @@ private:
         qint32 maxSizeSyncRequest; //maximum sync request list size
         quint32 maxCountSyncRequestParallel; //maximum request at the same time
 
+        qint32 maxYearSave;//
+        qint32 minUniqMacs;
 
     } syncSett;
 

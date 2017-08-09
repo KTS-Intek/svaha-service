@@ -119,6 +119,10 @@ QString SettLoader4svaha::valName4key(const int &key)
     case SETT_SYNC_MAX_COUNT_SHA1_CHRSPRLL  : s = "sync-max-count-fsprll"   ; break;
     case SETT_SYNC_MAX_SIZE_SYNC_REQUEST    : s = "sync-max-size-reqets"    ; break;
     case SETT_SYNC_MAX_COUNT_SYNQ_RQSTPRLL  : s = "sync-max-count-rqstprll" ; break;
+
+    case SETT_SYNC_MAX_YEAR_SAVE            : s = "sync-max-year-save"      ; break;
+    case SETT_SYNC_MIN_UNIQ_MAC_FILES       : s = "sync-min-uniq-mac"       ; break;
+
     }
     return s;
 }
@@ -159,6 +163,9 @@ QVariant SettLoader4svaha::loadOneSett(const int key)
     case SETT_SYNC_MAX_COUNT_SHA1_CHRSPRLL  : v = defSETT_SYNC_MAX_COUNT_SHA1_CHRSPRLL(); break;
     case SETT_SYNC_MAX_SIZE_SYNC_REQUEST    : v = defSETT_SYNC_MAX_SIZE_SYNC_REQUEST()  ; break;
     case SETT_SYNC_MAX_COUNT_SYNQ_RQSTPRLL  : v = defSETT_SYNC_MAX_COUNT_SYNQ_RQSTPRLL(); break;
+
+    case SETT_SYNC_MAX_YEAR_SAVE            : v = defSETT_SYNC_MAX_YEAR_SAVE()          ; break;
+    case SETT_SYNC_MIN_UNIQ_MAC_FILES       : v = defSETT_SYNC_MIN_UNIQ_MAC_FILES()     ; break;
     }
 
     QString valKey = valName4key(key);
@@ -247,5 +254,9 @@ quint32 SettLoader4svaha::defSETT_SYNC_MAX_COUNT_SHA1_CHRSPRLL(){ return 10     
 quint32 SettLoader4svaha::defSETT_SYNC_MAX_SIZE_SYNC_REQUEST()  { return 10000              ; }
 
 quint32 SettLoader4svaha::defSETT_SYNC_MAX_COUNT_SYNQ_RQSTPRLL(){ return 10                 ; }
+
+qint32 SettLoader4svaha::defSETT_SYNC_MAX_YEAR_SAVE()           { return 0                  ; }//no limit
+
+qint32 SettLoader4svaha::defSETT_SYNC_MIN_UNIQ_MAC_FILES()      { return 3                  ; }
 
 

@@ -25,10 +25,12 @@ signals:
 
     void appendMac2queueSyncRequest(QStringList macL, int counter);//no file or file too old
 
-    void hasRemovedMacs(QStringList macL, int counter);
+    void checkRemovedMacs(QStringList macL, int counter);
 
 public slots:
     void onThreadStarted();
+
+
 
 private:
     void startCheck();

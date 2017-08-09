@@ -52,6 +52,8 @@
 #define SETT_SYNC_MAX_SIZE_SYNC_REQUEST     17
 #define SETT_SYNC_MAX_COUNT_SYNQ_RQSTPRLL   18
 
+#define SETT_SYNC_MAX_YEAR_SAVE             19
+#define SETT_SYNC_MIN_UNIQ_MAC_FILES        20
 
 
 typedef QHash<QString,QString> QStringHash;
@@ -105,6 +107,8 @@ public:
     static quint32 defSETT_SYNC_MAX_SIZE_SYNC_REQUEST();
     static quint32 defSETT_SYNC_MAX_COUNT_SYNQ_RQSTPRLL();
 
+    static qint32 defSETT_SYNC_MAX_YEAR_SAVE();
+    static qint32 defSETT_SYNC_MIN_UNIQ_MAC_FILES();
 
 signals:
 
