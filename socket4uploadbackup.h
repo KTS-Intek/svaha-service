@@ -71,7 +71,7 @@ private:
 
     void saveBackupArrAsFile();
 
-    QString fileNameFromAboutObject(QStringList &macL);
+    QString fileNameFromAboutObject(QStringList &macL, const int &shaLen);
 
 
     bool verboseMode;

@@ -505,7 +505,7 @@ void SocketDlyaTrymacha::decodeReadDataJSON(const QByteArray &readArr)
         if(myRemoteIpAndDescr.left(7).toUpper() == "::FFFF:")
             myRemoteIpAndDescr = myRemoteIpAndDescr.mid(7);
         myRemoteIpAndDescr.append(QString(":%1").arg(socketDescriptor()));
-        emit addMyId2Hash(mIden, mMac, myRemoteIpAndDescr, getObjIfo(hash.value("ao").toMap(), true));
+        emit addMyId2Hash(mIden, mMac, myRemoteIpAndDescr, getObjIfo(hash.value("ao").toMap(), true), hash.contains("ao"));
         mWrite2SocketJSON(errCodeLastOperationJson(command, ERR_NO_ERROR), COMMAND_ERROR_CODE);//реєстрацію завершено упішно
         break;}
 
@@ -691,7 +691,7 @@ QStringHash SocketDlyaTrymacha::getObjIfo(const QVariantMap &h, const bool &addV
 
     QStringHash hashAboutObj;
     if(!h.isEmpty()){
-        QStringList lk = QString("SN vrsn DEV app IMEI IMSI CellID LAC RSSI RCSP ATI Ec/No ZCH ZID ZRSSI LQI VR HV Type ZEUI64").split(" ");
+        QStringList lk = QString("SN vrsn DEV app IMEI IMSI CID LAC RSSI RCSP ATI Ec/No ZCH ZID ZRSSI LQI VR HV Type ZEUI64").split(" ");
         for(int i = 0, iMax = lk.size(); i < iMax; i++){
             if(h.contains(lk.at(i)) && !h.value(lk.at(i)).toString().isEmpty())
                 hashAboutObj.insert(lk.at(i), h.value(lk.at(i)).toString());

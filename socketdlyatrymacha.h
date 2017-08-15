@@ -47,7 +47,7 @@ public:
     explicit SocketDlyaTrymacha(const bool &verbouseMode, QObject *parent = 0);
 
 signals:
-    void addMyId2Hash(QString objId, QStringList mac, QString remIpDescr, QStringHash hashObjIfo);//id mac <remote ip>:<descr>
+    void addMyId2Hash(QString objId, QStringList mac, QString remIpDescr, QStringHash hashObjIfo, bool add2sync);//id mac <remote ip>:<descr>
     void removeMyId2Hash(QStringList);//id mac
 
 

@@ -61,7 +61,6 @@ private:
 //    QVariantHash errCodeLastOperation(const quint16 &command, const int &errCode) const;
 
 
-    QString strFromStrHash(const QStringHash &h);
 
     quint8 authorizeF(QVariantHash h);
     QVariantHash uncompressRead(QByteArray readArr, quint16 &command);

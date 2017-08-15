@@ -63,7 +63,7 @@ void OldBackupCleaner::onCheckMacsTmr()
 void OldBackupCleaner::clearOldFile()
 {
     //<work dir>/<year>/<month>/<file names>  //UTC date time!!!
-    //file name <hex_low sha1>_<mac(X)>_...other keys
+    //file name <base sha1>_<mac(X)>_...other keys
 
     if(clearOldFileCounter++ != 0)//щоб не так часто
         return;
@@ -92,7 +92,7 @@ void OldBackupCleaner::clearOldFile()
 void OldBackupCleaner::clearFileByMac()
 {
     //<work dir>/<year>/<month>/<file names>  //UTC date time!!!
-    //file name <hex_low sha1>_<mac(X)>_...other keys
+    //file name <base64 ( omit "=",  replace("/", "=")) sha1>_<mac(X)>_...other keys
 
     if(listMacQueue.isEmpty())
         return;

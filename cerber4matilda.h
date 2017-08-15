@@ -38,7 +38,7 @@ signals:
     void getHashRemoteIdAndDevId(QString, bool);
     void removeCerverID(QString);
 
-    void remoteIdAndDevId(QStringHash , QStringHash ,QStringHash , QString, QStringHashHash hashAboutObject);
+    void remoteIdAndDevId(QStringHash hashMacRemoteId, QStringHash hashMacDevId, QStringHash hashTime, QString id, QStringHashHash hashAboutObject);
 
     void killClientNow(QString, bool);
 

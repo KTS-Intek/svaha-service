@@ -110,6 +110,10 @@ public:
     static qint32 defSETT_SYNC_MAX_YEAR_SAVE();
     static qint32 defSETT_SYNC_MIN_UNIQ_MAC_FILES();
 
+
+    static QString strFromStrHash(const QStringHash &h);
+
+
 signals:
 
 public slots:

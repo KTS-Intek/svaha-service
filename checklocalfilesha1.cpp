@@ -27,7 +27,7 @@ void CheckLocalFileSha1::onThreadStarted()
 void CheckLocalFileSha1::startCheck()
 {
     //<work dir>/<year>/<month>/<file names>  //UTC date time!!!
-    //file name <hex_low sha1>_<mac(X)>_...other keys
+    //file name <base64 ( omit "=",  replace("/", "=")) sha1>_<mac(X)>_...other keys
 
     QDir dir(fsett.workDir);
     if(!dir.exists())
@@ -75,6 +75,7 @@ void CheckLocalFileSha1::startCheck()
                             //first
 
                             QString sha1 = s.split("_").first();// MatildaProtocolHelper::calcFileSha1(fsett.workDir + "/" + lastPath + "/" + s, ok);
+                            sha1 = sha1.replace("=", "/");//заборонений у ФС символ / замінений на =
                             if(!s.isEmpty()){
                                lfoundMac.append(fsett.macL.at(n));
                                lfoundSha1.append(sha1);

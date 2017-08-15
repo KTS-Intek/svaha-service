@@ -259,4 +259,13 @@ qint32 SettLoader4svaha::defSETT_SYNC_MAX_YEAR_SAVE()           { return 0      
 
 qint32 SettLoader4svaha::defSETT_SYNC_MIN_UNIQ_MAC_FILES()      { return 3                  ; }
 
+QString SettLoader4svaha::strFromStrHash(const QStringHash &h)
+{
+    QList<QString> lk = h.keys();
+    QStringList l;
+    for(int i = 0, iMax = lk.size(); i < iMax; i++)
+        l.append(QString("%1=%2").arg(lk.at(i)).arg(h.value(lk.at(i))));
+    return l.join("; ");
+}
+
 

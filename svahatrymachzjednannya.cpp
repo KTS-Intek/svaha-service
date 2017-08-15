@@ -27,78 +27,31 @@
 
 #include "socketdlyatrymacha.h"
 #include "backupmanager.h"
-
+#include "svahasharedmemorymanager.h"
+#include "svahalocalsocket.h"
 
 //----------------------------------------------------------------------------------------------------------------------------
 SvahaTrymachZjednannya::SvahaTrymachZjednannya(QObject *parent) : QTcpServer(parent)
 {
     svahaServicePort = 0;
     verboseOut = qApp->arguments().contains("-vv");
-
+    createObjects = true;
 }
 //----------------------------------------------------------------------------------------------------------------------------
 bool SvahaTrymachZjednannya::startService()
 {
     if(listen(QHostAddress::Any, svahaServicePort)){
-
-        Cerber4matilda *server = new Cerber4matilda;
-        SettLoader4svaha sLoader;
-
-        if(!server->startServer(sLoader.loadOneSett(SETT_CERBERUS_PORT).toUInt())){
-            qDebug() << "startService 0 " << sLoader.loadOneSett(SETT_CERBERUS_PORT).toUInt() << server->errorString();
-            return false;
+        if(createObjects){
+            createObjects = false;
+            createManagers();
         }
-
-        qRegisterMetaType<QStringHash>("QStringHash");
-        qRegisterMetaType<QStringHashHash>("QStringHashHash");
-        qRegisterMetaType<QList<QDateTime> >("QList<QDateTime>");
-
-        QThread *thread = new QThread(this);
-        server->moveToThread(thread);
-
-        connect(server, SIGNAL(getHashRemoteIdAndDevId(QString, bool))  , this, SLOT(getHashRemoteIdAndDevId(QString, bool)) );
-        connect(server, SIGNAL(removeCerverID(QString))                 , this, SLOT(removeCerverID(QString)) );
-        connect(server, SIGNAL(killClientNow(QString,bool))             , this, SIGNAL(killClientNow(QString,bool)) );
-        connect(this, SIGNAL(remoteIdAndDevId(QStringHash,QStringHash,QStringHash,QString,QStringHashHash)), server, SIGNAL(remoteIdAndDevId(QStringHash,QStringHash,QStringHash,QString,QStringHashHash)) );
-
-        connect(server, SIGNAL(destroyed(QObject*)), thread, SLOT(quit())        );
-        connect(thread, SIGNAL(finished())         , thread, SLOT(deleteLater()) );
-
-        thread->start();
-
-        tmrCerver.setInterval(100);
-        tmrCerver.setSingleShot(true);
-
-        connect(this, SIGNAL(updateCerver()), &tmrCerver, SLOT(start()) );
-        connect(&tmrCerver, SIGNAL(timeout()), this, SLOT(sendCerverInfo()) );
-
-
-
-        BackUpManager *backup = new BackUpManager(verboseOut);
-        QThread *t = new QThread(this);
-
-        backup->moveToThread(t);
-        connect(backup, SIGNAL(destroyed(QObject*)), t, SLOT(quit()) );
-        connect(t, SIGNAL(finished()), t, SLOT(deleteLater()) );
-
-        connect(t, SIGNAL(started()), backup, SLOT(onThreadStarted()) );
-
-        connect(this, SIGNAL(onSyncRequestRemoteSha1isEqual(QStringList))        , backup, SLOT(onSyncRequestRemoteSha1isEqual(QStringList))         );
-        connect(this, SIGNAL(onSyncFileDownloaded(QStringList,QString,QDateTime)), backup, SLOT(onSyncFileDownloaded(QStringList,QString,QDateTime)) );
-        connect(this, SIGNAL(onConnectedThisMacs(QStringList))                   , backup, SLOT(onConnectedThisMacs(QStringList))                    );
-        connect(this, SIGNAL(onDisconnectedThisMacs(QStringList,int))            , backup, SLOT(onDisconnectedThisMacs(QStringList,int))             );
-
-        connect(backup, SIGNAL(checkBackup4thisMac(QString,QString)), this, SIGNAL(checkBackup4thisMac(QString,QString)) );
-
-        t->start();
-
         return true;
     }
     qDebug() << "startService 10 " << svahaServicePort << errorString();
     return false;
 }
 //----------------------------------------------------------------------------------------------------------------------------
-void SvahaTrymachZjednannya::addMyId2Hash(QString objId, QStringList mac, QString remIpDescr, QStringHash hashObjIfo)
+void SvahaTrymachZjednannya::addMyId2Hash(QString objId, QStringList mac, QString remIpDescr, QStringHash hashObjIfo, bool add2sync)
 {
     QString dt = QDateTime::currentDateTimeUtc().toString("yyyyMMddhhmmss");
     for(int i = 0, iMax = mac.size(); i < iMax; i++){
@@ -111,7 +64,8 @@ void SvahaTrymachZjednannya::addMyId2Hash(QString objId, QStringList mac, QStrin
         if( i == 0 )
             qDebug() << "hashObjIfo " << hashObjIfo;
     }
-    emit onConnectedThisMacs(mac);
+    if(add2sync)
+        emit onConnectedThisMacs(mac);
     emit updateCerver();
 }
 
@@ -274,11 +228,14 @@ void SvahaTrymachZjednannya::reloadSettings()
         setMaxPendingConnections(maxPendingConn);
 
     emit tmrReloadSettStart();
-
+    emit checkSett2all();
 }
 //----------------------------------------------------------------------------------------------------------------------------
 void SvahaTrymachZjednannya::initObjects()
 {
+    qRegisterMetaType<QStringHash>("QStringHash");
+    qRegisterMetaType<QStringHashHash>("QStringHashHash");
+    qRegisterMetaType<QList<QDateTime> >("QList<QDateTime>");
 
     QTimer *tmrReloadSett = new QTimer(this);
     tmrReloadSett->setSingleShot(true);
@@ -301,6 +258,11 @@ void SvahaTrymachZjednannya::infoAboutObj(QStringList macL, QStringHash objIfo, 
     }
     emit updateCerver();
 }
+//----------------------------------------------------------------------------------------------------------------------------
+void SvahaTrymachZjednannya::killApp()
+{
+    qApp->exit(APP_CODE_RESTART);
+}
 
 //----------------------------------------------------------------------------------------------------------------------------
 void SvahaTrymachZjednannya::incomingConnection(qintptr handle)
@@ -322,7 +284,7 @@ void SvahaTrymachZjednannya::incomingConnection(qintptr handle)
     connect(thread, SIGNAL(started()), socket, SLOT(onThrdStarted()) );
 
     connect(socket, SIGNAL(connMe2ThisIdOrMac(QString,bool,QString, QString))    , this, SLOT(connMe2ThisIdOrMac(QString,bool,QString,QString))      );
-    connect(socket, SIGNAL(addMyId2Hash(QString,QStringList,QString,QStringHash)), this, SLOT(addMyId2Hash(QString,QStringList,QString,QStringHash)) );
+    connect(socket, SIGNAL(addMyId2Hash(QString,QStringList,QString,QStringHash,bool)), this, SLOT(addMyId2Hash(QString,QStringList,QString,QStringHash,bool)) );
     connect(socket, SIGNAL(removeMyId2Hash(QStringList))                         , this, SLOT(removeMyId2Hash(QStringList))                          );
     connect(socket, SIGNAL(infoAboutObj(QStringList,QStringHash,int))            , this, SLOT(infoAboutObj(QStringList,QStringHash,int))             );
 
@@ -347,6 +309,94 @@ void SvahaTrymachZjednannya::sendCerverInfo()
 {
     for(int i = 0, iMax = cerverIdList.size(); i < iMax; i++)
         emit remoteIdAndDevId(hashMacRemoteId, hashMacDevId, hashMacAddTime, cerverIdList.at(i), hashMac2objectIfo);
+    emit setNewCerberusIps(hashMacRemoteId, hashMacDevId, hashMacAddTime, hashMac2objectIfo);
 
+}
+//----------------------------------------------------------------------------------------------------------------------------
+void SvahaTrymachZjednannya::createManagers()
+{
+
+    Cerber4matilda *server = new Cerber4matilda;
+
+    if(true){
+        SettLoader4svaha sLoader;
+        if(!server->startServer(sLoader.loadOneSett(SETT_CERBERUS_PORT).toUInt())){
+            qDebug() << "startService 0 " << sLoader.loadOneSett(SETT_CERBERUS_PORT).toUInt() << server->errorString();
+
+        }
+    }
+
+
+
+    QThread *thread = new QThread(this);
+    server->moveToThread(thread);
+
+    connect(server, SIGNAL(getHashRemoteIdAndDevId(QString, bool))  , this, SLOT(getHashRemoteIdAndDevId(QString, bool)) );
+    connect(server, SIGNAL(removeCerverID(QString))                 , this, SLOT(removeCerverID(QString)) );
+    connect(server, SIGNAL(killClientNow(QString,bool))             , this, SIGNAL(killClientNow(QString,bool)) );
+    connect(this, SIGNAL(remoteIdAndDevId(QStringHash,QStringHash,QStringHash,QString,QStringHashHash)), server, SIGNAL(remoteIdAndDevId(QStringHash,QStringHash,QStringHash,QString,QStringHashHash)) );
+
+    connect(server, SIGNAL(destroyed(QObject*)), thread, SLOT(quit())        );
+    connect(thread, SIGNAL(finished())         , thread, SLOT(deleteLater()) );
+
+    thread->start();
+
+    tmrCerver.setInterval(100);
+    tmrCerver.setSingleShot(true);
+
+    connect(this, SIGNAL(updateCerver()), &tmrCerver, SLOT(start()) );
+    connect(&tmrCerver, SIGNAL(timeout()), this, SLOT(sendCerverInfo()) );
+
+
+    if(true){
+        BackUpManager *backup = new BackUpManager(verboseOut);
+        QThread *t = new QThread(this);
+
+        backup->moveToThread(t);
+        connect(backup, SIGNAL(destroyed(QObject*)), t, SLOT(quit()) );
+        connect(t, SIGNAL(finished()), t, SLOT(deleteLater()) );
+
+        connect(t, SIGNAL(started()), backup, SLOT(onThreadStarted()) );
+
+        connect(this, SIGNAL(onSyncRequestRemoteSha1isEqual(QStringList))        , backup, SLOT(onSyncRequestRemoteSha1isEqual(QStringList))         );
+        connect(this, SIGNAL(onSyncFileDownloaded(QStringList,QString,QDateTime)), backup, SLOT(onSyncFileDownloaded(QStringList,QString,QDateTime)) );
+        connect(this, SIGNAL(onConnectedThisMacs(QStringList))                   , backup, SLOT(onConnectedThisMacs(QStringList))                    );
+        connect(this, SIGNAL(onDisconnectedThisMacs(QStringList,int))            , backup, SLOT(onDisconnectedThisMacs(QStringList,int))             );
+        connect(this, SIGNAL(checkSett2all())                                    , backup, SLOT(reloadSettings())                                    );
+
+        connect(backup, SIGNAL(checkBackup4thisMac(QString,QString)), this, SIGNAL(checkBackup4thisMac(QString,QString)) );
+
+        t->start();
+    }
+
+    if(qApp->arguments().contains("--shared-memory")){
+        if(true){
+            SvahaSharedMemoryManager *manager = new SvahaSharedMemoryManager;
+            QThread *t = new QThread(this);
+            manager->moveToThread(t);
+
+            connect(manager, SIGNAL(destroyed(QObject*)), t, SLOT(quit()) );
+            connect(t, SIGNAL(finished()), t, SLOT(deleteLater()) );
+            connect(t, SIGNAL(started()), manager, SLOT(onThreadStarted()) );
+
+            connect(this, SIGNAL(setNewCerberusIps(QStringHash,QStringHash,QStringHash,QStringHashHash)), manager, SLOT(setNewCerberusIps(QStringHash,QStringHash,QStringHash,QStringHashHash)) );
+            t->start();
+        }
+
+        if(true){
+            SvahaLocalSocket *manager = new SvahaLocalSocket(verboseOut);
+            QThread *t = new QThread(this);
+            manager->moveToThread(t);
+
+            connect(manager, SIGNAL(destroyed(QObject*)), t, SLOT(quit()) );
+            connect(t, SIGNAL(finished()), t, SLOT(deleteLater()) );
+            connect(t, SIGNAL(started()), manager, SLOT(onThreadStarted()) );
+
+            connect(manager, SIGNAL(reloadSett()), this, SLOT(reloadSettings()) );
+            connect(manager, SIGNAL(killApp()   ), this, SLOT(killApp())        );
+            t->start();
+
+        }
+    }
 }
 //----------------------------------------------------------------------------------------------------------------------------

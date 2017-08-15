@@ -49,7 +49,7 @@ signals:
 
     void checkThisMac(QString);
 
-    void remoteIdAndDevId(QStringHash , QStringHash , QStringHash , QString , QStringHashHash hashAboutObject);
+    void remoteIdAndDevId(QStringHash hashMacRemoteId, QStringHash hashMacDevId, QStringHash hashTime, QString id, QStringHashHash hashAboutObject);
 
     void updateCerver();
 
@@ -71,8 +71,14 @@ signals:
 //from manager
     void checkBackup4thisMac(QString mac, QString lastSha1base64);//check SHA1 for last backup file and if not equal: create new backup (check settings before this)  and upload to service
 
+    //shared memory manager
+    void setNewCerberusIps(QStringHash hashMacRemoteId, QStringHash hashMacDevId, QStringHash hashTime, QStringHashHash hashAboutObject);
+
+//to all
+    void checkSett2all();
+
 public slots:
-    void addMyId2Hash(QString objId, QStringList mac, QString remIpDescr, QStringHash hashObjIfo);//id mac <remote ip>:<descr>
+    void addMyId2Hash(QString objId, QStringList mac, QString remIpDescr, QStringHash hashObjIfo, bool add2sync);//id mac <remote ip>:<descr>
 
     void removeMyId2Hash(QStringList macList);//id mac <remote ip>:<descr>
 
@@ -89,12 +95,15 @@ public slots:
     void infoAboutObj(QStringList macL, QStringHash objIfo, int counter);
 
 
+    void killApp();
 
 protected:
     void incomingConnection(qintptr handle);
 
 private slots:
     void sendCerverInfo();
+
+    void createManagers();
 
 
 
@@ -103,6 +112,7 @@ private:
     QStringHash hashMacRemoteId, hashMacDevId, hashMacAddTime;
     QStringHashHash hashMac2objectIfo;
     bool verboseOut;
+    bool createObjects;
 //історія підключень
 
 

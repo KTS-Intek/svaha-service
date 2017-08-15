@@ -95,7 +95,8 @@ void Cerber4matildaSocket::remoteIdAndDevId(QStringHash hashMacRemoteId, QString
 
         QList<QString> listMac = hashMacRemoteId.keys();
         for(int i = 0, iMax = listMac.size(); i < iMax; i++){
-            hash.insert( listMac.at(i), QStringList() << hashMacRemoteId.value(listMac.at(i)) << hashMacDevId.value(listMac.at(i)) << hashTime.value(listMac.at(i)) << strFromStrHash(hashAboutObject.value(listMac.at(i))) );
+            hash.insert( listMac.at(i), QStringList() << hashMacRemoteId.value(listMac.at(i)) << hashMacDevId.value(listMac.at(i)) << hashTime.value(listMac.at(i))
+                         << SettLoader4svaha::strFromStrHash(hashAboutObject.value(listMac.at(i))) );
         }
 
         mWrite2Socket(hash, COMMAND_READ_HASH);
@@ -295,15 +296,6 @@ void Cerber4matildaSocket::decodeReadData(const QVariantHash &readHash, const qu
 bool Cerber4matildaSocket::isConnOpen()
 {
     return (state() == QAbstractSocket::ConnectedState || state() == QAbstractSocket::ConnectingState);
-}
-//----------------------------------------------------------------------------------------------------------------------------
-QString Cerber4matildaSocket::strFromStrHash(const QStringHash &h)
-{
-    QList<QString> lk = h.keys();
-    QStringList l;
-    for(int i = 0, iMax = lk.size(); i < iMax; i++)
-        l.append(QString("%1=%2").arg(lk.at(i)).arg(h.value(lk.at(i))));
-    return l.join("; ");
 }
 
 //----------------------------------------------------------------------------------------------------------------------------

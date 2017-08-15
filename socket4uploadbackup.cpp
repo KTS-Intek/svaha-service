@@ -539,7 +539,7 @@ void Socket4uploadBackup::mWriteToSocket(const QVariant s_data, const quint16 s_
 void Socket4uploadBackup::saveBackupArrAsFile()
 {
     if(lastSha1base64.isEmpty())
-        lastSha1base64 = QCryptographicHash::hash(backupArr, QCryptographicHash::Sha1).toHex().toLower();// toBase64(QByteArray::OmitTrailingEquals);
+        lastSha1base64 = QCryptographicHash::hash(backupArr, QCryptographicHash::Sha1).toBase64(QByteArray::OmitTrailingEquals);// toHex().toLower();// toBase64(QByteArray::OmitTrailingEquals);
     if(lastSha1base64.isEmpty() || backupArr.isEmpty()){
         if(verboseMode)
             qDebug() << "noSha1=" << lastSha1base64.isEmpty() << ", noData=" << backupArr.isEmpty() << ", dataLen=" << backupArrLen;
@@ -548,7 +548,7 @@ void Socket4uploadBackup::saveBackupArrAsFile()
 
     //create new backup
     //<work dir>/<year>/<month>/<file names>  //UTC date time!!!
-    //file name <hex_low sha1>_<mac(X)>_...other keys
+    //file name <base64 ( omit "=",  replace("/", "=", on file only)) sha1>_<mac(X)>_...other keys
 
     QString workDir = SettLoader4svaha().loadOneSett(SETT_SYNC_WORKDIR).toString();
     if(workDir.isEmpty()){
@@ -563,8 +563,8 @@ void Socket4uploadBackup::saveBackupArrAsFile()
         dir.mkpath(workDir);
 
     QStringList macL;
-    QString fileName = lastSha1base64 + "_" + fileNameFromAboutObject(macL);
-//    fileName = fileName.replace("/", "");
+    QString fileName = lastSha1base64 + "_" + fileNameFromAboutObject(macL, lastSha1base64.length());
+    fileName = fileName.replace("/", "=");
 
     QSaveFile sFile(workDir + "/" + fileName);
     if(sFile.open(QSaveFile::WriteOnly|QSaveFile::Unbuffered)){
@@ -584,7 +584,7 @@ void Socket4uploadBackup::saveBackupArrAsFile()
 
 }
 //---------------------------------------------------------------------------------
-QString Socket4uploadBackup::fileNameFromAboutObject(QStringList &macL)
+QString Socket4uploadBackup::fileNameFromAboutObject(QStringList &macL, const int &shaLen)
 {
     /*(if exists)
      * ID
@@ -616,7 +616,7 @@ QString Socket4uploadBackup::fileNameFromAboutObject(QStringList &macL)
      *
 */
 
-//file name <hex_low sha1>_<mac(X)>_...other keys
+    //file name <base64 ( omit "=",  replace("/", "=")) sha1>_<mac(X)>_...other keys
 
     QVariantHash hashAboutObj = this->hashAboutObj;
     //make some optimisation
@@ -643,26 +643,34 @@ QString Socket4uploadBackup::fileNameFromAboutObject(QStringList &macL)
 
     QStringList l;
     macL.clear();
+    int fileNameLen = shaLen + 1;//sha1 len
+
     for(int i = 0; i < 10; i++){
         if(!hashAboutObj.value(QString("MAC%1").arg(i)).toString().isEmpty()){
             macL.append(hashAboutObj.value(QString("MAC%1").arg(i)).toString());
             l.append(QString("MAC%1:").arg(i) + macL.last());
+            fileNameLen += l.last().length();
+            fileNameLen++;
+            if(fileNameLen > 250){//ext4 max file name len 255 byte
+                l.takeLast();
+                break;
+            }
         }else
             break;
     }
 
     QStringList lk = QString("ID SN vrsn DEV app").split(" ");
-    lk.append(QString("IMEI IMSI CellID LAC").split(" "));
+    lk.append(QString("IMEI IMSI CID LAC").split(" "));
     lk.append(QString("ZCH ZID ZEUI64").split(" "));
 
     lk.append(QString("RSSI RCSP ATI EcNo ZRSSI LQI VR HV Type").split(" "));//Low priority
-    int fileNameLen = 42;//sha1 hex len
+
     for(int i = 0, iMax = lk.size(); i < iMax; i++){
         if(!hashAboutObj.value(lk.at(i)).toString().isEmpty()){
             l.append(lk.at(i) + ":" + hashAboutObj.value(lk.at(i)).toString());
             fileNameLen += l.last().length();
             fileNameLen++;
-            if(fileNameLen > 254){//ext4 max file name len 255 byte
+            if(fileNameLen > 250){//ext4 max file name len 255 byte
                 l.takeLast();
                 break;
             }

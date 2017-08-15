@@ -308,7 +308,7 @@ QDateTime BackUpManager::dt4check(QDateTime &currDtUtc)
 {
     QDateTime dt = currDtUtc = QDateTime::currentDateTimeUtc();
     switch(syncSett.syncMode){
-    case DT_MODE_EVERY_DAY  : dt = currDtUtc.addSecs(-10800); break; // addDays(-1)  ; break;
+    case DT_MODE_EVERY_DAY  : dt = currDtUtc.addDays(-1)  ; break;
     case DT_MODE_EVERY_WEEK : dt = currDtUtc.addDays(-7)  ; break;
     case DT_MODE_EVERY_MONTH: dt = currDtUtc.addMonths(-1); break;
     }
@@ -319,7 +319,7 @@ bool BackUpManager::isNeed2syncRequest(const QString &mac, const QDateTime &dt, 
 {
     Mac2syncInfo info = hMac2syncInfo.value(mac);
     lastSha1 = info.lastSha1base64;
-    if(info.dtSyncRequest.isValid() && info.dtSyncRequest.secsTo(currDtUtc) < (12 * 3600))
+    if(info.dtSyncRequest.isValid() && info.dtSyncRequest.secsTo(currDtUtc) < (3 * 3600))
         return false;//даю час на синхронізацію
     return (!info.dtLastSyncFile.isValid() || info.dtLastSyncFile <= dt);
 }

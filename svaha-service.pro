@@ -31,13 +31,15 @@ SOURCES += main.cpp \
     settloader4svaha.cpp \
     readjsonhelper.cpp \
     backupmanager.cpp \
-    matildasynchelper.cpp \
     matildaprotocolhelper.cpp \
     checklocalfilesha1.cpp \
     service4uploadbackup.cpp \
     socket4uploadbackup.cpp \
     settloader4matilda.cpp \
-    oldbackupcleaner.cpp
+    oldbackupcleaner.cpp \
+    svahasharedmemorymanager.cpp \
+    localsockettmplt.cpp \
+    svahalocalsocket.cpp
 
 HEADERS += \
     svahatrymachzjednannya.h \
@@ -51,14 +53,16 @@ HEADERS += \
     defcerberus.h \
     readjsonhelper.h \
     backupmanager.h \
-    matildasynchelper.h \
     matildaprotocolhelper.h \
     checklocalfilesha1.h \
     service4uploadbackup.h \
     socket4uploadbackup.h \
     settloader4matilda.h \
     svahadefine.h \
-    oldbackupcleaner.h
+    oldbackupcleaner.h \
+    svahasharedmemorymanager.h \
+    localsockettmplt.h \
+    svahalocalsocket.h
 
 DISTFILES += \
     LICENSE
