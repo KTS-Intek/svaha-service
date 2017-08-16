@@ -69,12 +69,17 @@ public:
 
     QString valName4key(const int &key);
 
+    QVariant defVal4key(const int &key);
 
     QVariant loadOneSett(const int key);
 
     bool saveOneSett(const int key, const QVariant data2save);
 
     QString path2sett();
+
+    QVariantHash loadSettByKey(const QStringList &lk, const QList<int> &lks);
+
+    bool saveSettByKey(const QVariantHash &h, const QStringList &lk, const QList<int> &lks);
 
 
     static quint16 defSETT_SVAHA_SERVICE_PORT();

@@ -6,6 +6,14 @@ CONFIG += c++11
 CONFIG += console
 CONFIG -= app_bundle
 
+# remove possible other optimization flags
+QMAKE_CXXFLAGS_RELEASE -= -O1
+QMAKE_CXXFLAGS_RELEASE -= -O2
+#QMAKE_CXXFLAGS_RELEASE -= -O3
+#QMAKE_CXXFLAGS += -Os
+
+# add the desired -O3 if not present
+QMAKE_CXXFLAGS_RELEASE *= -O3
 
 linux-rasp-pi-g++:{
     DEFINES += ISRASPI=1
@@ -13,7 +21,8 @@ linux-rasp-pi-g++:{
 }
 
 linux-beagleboard-g++:{
-    target.path = /home/root
+#    target.path = /home/root
+    target.path = /opt/matilda/bin
 }
 TARGET = svaha-service-bbb
 

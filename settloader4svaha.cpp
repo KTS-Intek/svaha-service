@@ -127,15 +127,8 @@ QString SettLoader4svaha::valName4key(const int &key)
     return s;
 }
 //----------------------------------------------------------------------------------------------------------------------------
-QVariant SettLoader4svaha::loadOneSett(const int key)
+QVariant SettLoader4svaha::defVal4key(const int &key)
 {
-
-    QSettings settings(path2sett(), QSettings::NativeFormat);
-    if(settings.fileName().isEmpty()){
-        qDebug() << "sett is empty " << settings.fileName();
-        return false;
-    }
-
     QVariant v;
 
 
@@ -167,15 +160,28 @@ QVariant SettLoader4svaha::loadOneSett(const int key)
     case SETT_SYNC_MAX_YEAR_SAVE            : v = defSETT_SYNC_MAX_YEAR_SAVE()          ; break;
     case SETT_SYNC_MIN_UNIQ_MAC_FILES       : v = defSETT_SYNC_MIN_UNIQ_MAC_FILES()     ; break;
     }
+    return v;
+}
+//----------------------------------------------------------------------------------------------------------------------------
+QVariant SettLoader4svaha::loadOneSett(const int key)
+{
+
+    QSettings settings(path2sett(), QSettings::NativeFormat);
+    if(settings.fileName().isEmpty()){
+        qDebug() << "sett is empty " << settings.fileName();
+        return false;
+    }
+
+
 
     QString valKey = valName4key(key);
     if(valKey.isEmpty()){
         qDebug() << "loadOneSett unknown key " << key ;
-        return v;
+        return defVal4key(key);
     }
 
     settings.beginGroup("svaha-conf");
-    v = settings.value(valKey, v);
+    QVariant v = settings.value(valKey, defVal4key(key));
     settings.endGroup();
 
     return v;
@@ -204,6 +210,61 @@ bool SettLoader4svaha::saveOneSett(const int key, const QVariant data2save)
 }
 
 QString SettLoader4svaha::path2sett(){ return QString("%1/svaha.conf").arg(qApp->applicationDirPath()); }
+
+//--------------------------------------------------------------------------------------------------------
+QVariantHash SettLoader4svaha::loadSettByKey(const QStringList &lk, const QList<int> &lks)
+{
+    QVariantHash h;
+
+    QSettings settings(path2sett(), QSettings::NativeFormat);
+    if(settings.fileName().isEmpty()){
+        qDebug() << "sett is empty " << settings.fileName();
+        return h;
+    }
+    settings.beginGroup("svaha-conf");
+
+    for(int i = 0, iMax = lk.size(); i < iMax; i++){
+        int key = lks.at(i);
+        QString valKey = valName4key(key);
+        if(valKey.isEmpty()){
+            qDebug() << "loadSettByKey unknown key " << key ;
+            h.insert(lk.at(i), defVal4key(key));
+            continue;
+        }
+        h.insert(lk.at(i), settings.value(valKey, defVal4key(key)));
+    }
+    settings.endGroup();
+    return h;
+}
+
+//--------------------------------------------------------------------------------------------------------
+
+bool SettLoader4svaha::saveSettByKey(const QVariantHash &h, const QStringList &lk, const QList<int> &lks)
+{
+    bool r = false;
+    QSettings settings(path2sett(), QSettings::NativeFormat);
+    if(settings.fileName().isEmpty()){
+        qDebug() << "sett is empty " << settings.fileName();
+        return r;
+    }
+    settings.beginGroup("svaha-conf");
+
+    for(int i = 0, iMax = lk.size(); i < iMax; i++){
+        if(!h.contains(lk.at(i)))
+            continue;
+        QString valKey = valName4key(lks.at(i));
+        if(valKey.isEmpty()){
+            qDebug() << "saveSettByKey unknown key " << lks.at(i) ;
+            continue;
+        }
+        r = true;
+        settings.setValue(valKey, h.value(lk.at(i)));
+    }
+    settings.endGroup();
+    return r;
+}
+
+//--------------------------------------------------------------------------------------------------------
 
 quint16 SettLoader4svaha::defSETT_SVAHA_SERVICE_PORT()        { return (quint16)65000   ;}
 
