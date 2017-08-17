@@ -25,6 +25,7 @@
 #include <QSettings>
 
 #include <QtCore>
+
 //----------------------------------------------------------------------------------------------------------------------------
 SettLoader4svaha::SettLoader4svaha( QObject *parent) : QObject(parent)
 {    
@@ -208,8 +209,28 @@ bool SettLoader4svaha::saveOneSett(const int key, const QVariant data2save)
     return true;
 
 }
+//--------------------------------------------------------------------------------------------------------
+QString SettLoader4svaha::path2sett()
+{
+//    return QString("%1/svaha.conf").arg(qApp->applicationDirPath());
+    QDir dir(qApp->applicationDirPath());
+    QString path2sett ;
 
-QString SettLoader4svaha::path2sett(){ return QString("%1/svaha.conf").arg(qApp->applicationDirPath()); }
+    if(dir.cdUp()){
+        dir.setPath(QString("%1/config").arg(dir.path()));
+        path2sett = dir.path();
+        if(!dir.exists())
+            dir.mkpath(path2sett);
+
+        path2sett.append(QString("/svaha"));
+
+    }
+
+    if(path2sett.isEmpty())
+        path2sett = "/dev/null";
+
+    return path2sett;
+}
 
 //--------------------------------------------------------------------------------------------------------
 QVariantHash SettLoader4svaha::loadSettByKey(const QStringList &lk, const QList<int> &lks)

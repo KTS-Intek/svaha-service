@@ -612,7 +612,7 @@ QString Socket4uploadBackup::fileNameFromAboutObject(QStringList &macL, const in
      * VR
      * HV
      * Type
-     * ZEUI64
+     * EUI64
      *
 */
 
@@ -641,6 +641,13 @@ QString Socket4uploadBackup::fileNameFromAboutObject(QStringList &macL, const in
     if(hashAboutObj.contains("Type"))
         hashAboutObj.insert("Type", hashAboutObj.value("Type").toString().left(1));
 
+    if(hashAboutObj.contains("CellID"))
+        hashAboutObj.insert("CID", hashAboutObj.take("CellID"));
+
+    if(hashAboutObj.contains("ZEUI64"))
+        hashAboutObj.insert("EUI64", hashAboutObj.take("ZEUI64"));
+
+
     QStringList l;
     macL.clear();
     int fileNameLen = shaLen + 1;//sha1 len
@@ -648,7 +655,7 @@ QString Socket4uploadBackup::fileNameFromAboutObject(QStringList &macL, const in
     for(int i = 0; i < 10; i++){
         if(!hashAboutObj.value(QString("MAC%1").arg(i)).toString().isEmpty()){
             macL.append(hashAboutObj.value(QString("MAC%1").arg(i)).toString());
-            l.append(QString("MAC%1:").arg(i) + macL.last());
+            l.append(QString("MAC%1:").arg(i) + macL.last().remove(":"));
             fileNameLen += l.last().length();
             fileNameLen++;
             if(fileNameLen > 250){//ext4 max file name len 255 byte
@@ -660,8 +667,8 @@ QString Socket4uploadBackup::fileNameFromAboutObject(QStringList &macL, const in
     }
 
     QStringList lk = QString("ID SN vrsn DEV app").split(" ");
-    lk.append(QString("IMEI IMSI CID LAC").split(" "));
-    lk.append(QString("ZCH ZID ZEUI64").split(" "));
+    lk.append(QString("IMEI IMSI CID CellID LAC").split(" "));
+    lk.append(QString("ZCH ZID EUI64").split(" "));
 
     lk.append(QString("RSSI RCSP ATI EcNo ZRSSI LQI VR HV Type").split(" "));//Low priority
 

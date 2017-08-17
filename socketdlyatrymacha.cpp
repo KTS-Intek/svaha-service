@@ -660,42 +660,17 @@ bool SocketDlyaTrymacha::messHshIsValid(const QJsonObject &jObj, QByteArray read
 //----------------------------------------------------------------------------------------------------------------------------
 QStringHash SocketDlyaTrymacha::getObjIfo(const QVariantMap &h, const bool &addVersion)
 {
-    /*(if exists)
-     *
-     * SN <serial number>
-     * vrsn
-     * DEV
-     * app
-     *
-     * //gsm section
-     * IMEI
-     * IMSI
-     * CID
-     * BAND
-     * RSSI
-     * ATI
-     * RCSP
-     * Ec/No
-     *
-     * //zigbee
-     * ZCH
-     * ZID
-     * ZRSSI
-     * LQI
-     * VR
-     * HV
-     * Type
-     * ZEUI64
-     *
-*/
+    //shared memory keys
 
     QStringHash hashAboutObj;
     if(!h.isEmpty()){
-        QStringList lk = QString("SN vrsn DEV app IMEI IMSI CID LAC RSSI RCSP ATI Ec/No ZCH ZID ZRSSI LQI VR HV Type ZEUI64").split(" ");
+        QStringList lk = QString("SN vrsn DEV app IMEI IMSI CellID LAC RSSI RCSP ATI Ec/No ZCH ZID ZRSSI LQI VR HV Type EUI64 ZEUI64").split(" ");
         for(int i = 0, iMax = lk.size(); i < iMax; i++){
             if(h.contains(lk.at(i)) && !h.value(lk.at(i)).toString().isEmpty())
                 hashAboutObj.insert(lk.at(i), h.value(lk.at(i)).toString());
-        }
+        }        
+        if(hashAboutObj.contains("ZEUI64"))
+            hashAboutObj.insert("EUI64", hashAboutObj.value("ZEUI64"));
     }else{
         if(addVersion)
             hashAboutObj.insert("vrsn", QString::number(MATILDA_PROTOCOL_VERSION_V1));

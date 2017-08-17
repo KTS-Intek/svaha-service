@@ -254,6 +254,9 @@ void SvahaTrymachZjednannya::infoAboutObj(QStringList macL, QStringHash objIfo, 
     for(int i = 0; i < counter; i++){
         if(!hashMac2objectIfo.contains(macL.at(i)))
             continue;
+        else if(objIfo.isEmpty())
+            continue;
+
         hashMac2objectIfo.insert(macL.at(i), objIfo);
     }
     emit updateCerver();
