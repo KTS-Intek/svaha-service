@@ -29,7 +29,7 @@
 #include "backupmanager.h"
 #include "svahasharedmemorymanager.h"
 #include "svahalocalsocket.h"
-
+#include "settloader4matilda.h"
 //----------------------------------------------------------------------------------------------------------------------------
 SvahaTrymachZjednannya::SvahaTrymachZjednannya(QObject *parent) : QTcpServer(parent)
 {
@@ -229,6 +229,17 @@ void SvahaTrymachZjednannya::reloadSettings()
 
     emit tmrReloadSettStart();
     emit checkSett2all();
+
+    QStringList blockThisIp, whiteIpList;
+    if(true){
+        SettLoader4matilda sLoader;
+        blockThisIp = sLoader.loadOneSett(SETT_BLACK_IP_LIST).toStringList();
+        whiteIpList = sLoader.loadOneSett(SETT_WHITE_IP_LIST).toStringList();
+    }
+    if(blockThisIp != this->blockThisIp || whiteIpList != this->whiteIpList){
+        this->whiteIpList = whiteIpList;
+        this->blockThisIp = blockThisIp;
+    }
 }
 //----------------------------------------------------------------------------------------------------------------------------
 void SvahaTrymachZjednannya::initObjects()
@@ -277,6 +288,16 @@ void SvahaTrymachZjednannya::incomingConnection(qintptr handle)
         return;
     }
     qDebug() << "SvahaTrymachZjednannya onNewConnection " << socket->peerAddress() << socket->peerName() << socket->peerPort();
+
+    if(!whiteIpList.isEmpty() || !blockThisIp.isEmpty()){
+        QString ipStr = SettLoader4matilda::showNormalIP(socket->peerAddress().toString());
+
+        if( (!whiteIpList.isEmpty() && !whiteIpList.contains(ipStr)) || (!blockThisIp.isEmpty() && blockThisIp.contains(ipStr))){
+            socket->close();
+            socket->deleteLater();
+            return;
+        }
+    }
 
 
     QThread *thread = new QThread(this);
@@ -397,6 +418,8 @@ void SvahaTrymachZjednannya::createManagers()
 
             connect(manager, SIGNAL(reloadSett()), this, SLOT(reloadSettings()) );
             connect(manager, SIGNAL(killApp()   ), this, SLOT(killApp())        );
+
+            connect(manager, SIGNAL(killClientNow(QString,bool)), this, SIGNAL(killClientNow(QString,bool)) );
             t->start();
 
         }

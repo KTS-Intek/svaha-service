@@ -122,6 +122,10 @@ private:
     QStringList cerverIdList;
 
     QTimer tmrCerver;
+
+
+    QStringList blockThisIp;
+    QStringList whiteIpList;
 };
 
 #endif // SVAHATRYMACHZJEDNANNYA_H

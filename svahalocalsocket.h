@@ -13,6 +13,8 @@ public:
 
 
 signals:
+    void killClientNow(QString id, bool byDevId);
+
 
 public slots:
     void onConfigChangedSlot(quint16 command, QVariant var);
