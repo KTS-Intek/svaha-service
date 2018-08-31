@@ -21,7 +21,8 @@
 ****************************************************************************/
 
 #include "socket4uploadbackup.h"
-#include "../matilda-bbb/moji_defy.h"
+#include "src/matilda/moji_defy.h"
+#include "src/matilda/matildalimits.h"
 #include <QJsonObject>
 #include <QtCore>
 #include "settloader4svaha.h"

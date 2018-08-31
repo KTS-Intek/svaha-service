@@ -29,9 +29,10 @@
 #include <QJsonObject>
 #include <QVariantMap>
 
-#include "../matilda-bbb/moji_defy.h"
+#include "src/matilda/moji_defy.h"
+#include "src/matilda/matildalimits.h"
 #include "settloader4svaha.h"
-#include "readjsonhelper.h"
+#include "matilda-bbb-src/shared/readjsonhelper.h"
 #include "service4uploadbackup.h"
 
 #define REM_DEV_MATILDA_UNKNWN  -1

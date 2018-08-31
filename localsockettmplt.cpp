@@ -1,7 +1,7 @@
 #include "localsockettmplt.h"
 
 #include <QHostAddress>
-#include "settloader4matilda.h"
+#include "matilda-bbb-src/shared/pathsresolver.h"
 
 //-----------------------------------------------------------------------------------------------------------------------------------------------
 LocalSocketTmplt::LocalSocketTmplt(QObject *parent) : QLocalSocket(parent)
@@ -42,7 +42,7 @@ void LocalSocketTmplt::connect2extension()
     }
     stopAll = false;
     zombieNow = 0;
-    connectToServer(SettLoader4matilda::defLocalServerName());
+    connectToServer(PathsResolver::defLocalServerName());
 
     if(waitForConnected(500)){
         emit startZombieDetect();

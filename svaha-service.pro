@@ -24,6 +24,11 @@ linux-beagleboard-g++:{
 #    target.path = /home/root
     target.path = /opt/matilda/bin
 }
+
+linux:{
+#    target.path = /home/root
+    target.path = /opt/matilda/bin
+}
 TARGET = svaha-service-bbb
 
 INSTALLS += target
@@ -38,17 +43,29 @@ SOURCES += main.cpp \
     cerber4matilda.cpp \
     cerber4matildasocket.cpp \
     settloader4svaha.cpp \
-    readjsonhelper.cpp \
     backupmanager.cpp \
-    matildaprotocolhelper.cpp \
     checklocalfilesha1.cpp \
     service4uploadbackup.cpp \
     socket4uploadbackup.cpp \
-    settloader4matilda.cpp \
     oldbackupcleaner.cpp \
     svahasharedmemorymanager.cpp \
     localsockettmplt.cpp \
-    svahalocalsocket.cpp
+    svahalocalsocket.cpp \
+    matilda-bbb-src/shared/readjsonhelper.cpp \
+    src/matilda/settloader4matilda.cpp \
+    src/matilda/settloader4matildadefaults.cpp \
+    src/shared/networkconverthelper.cpp \
+    src/shared/sharedmemohelper.cpp \
+    src/shared/sharedmemoprotocolhelper.cpp \
+    matilda-bbb-src/shared/pathsresolver.cpp \
+    src/matilda/serialporthelper.cpp \
+    matilda-bbb-src/shared/macaddresshelper.cpp \
+    matilda-bbb-src/shared/runprocess.cpp \
+    src/matilda/matildaprotocolhelper.cpp \
+    src/meter/numberconvertation.cpp \
+    matilda-bbb-src/shared/ifacemanagerhelper.cpp \
+    src/meter/meterpluginloader.cpp \
+    src/meter/meteroperations.cpp
 
 HEADERS += \
     svahatrymachzjednannya.h \
@@ -56,22 +73,36 @@ HEADERS += \
     socketdlyatrymacha.h \
     socketprosto.h \
     cerber4matilda.h \
-    ../matilda-bbb/moji_defy.h \
     cerber4matildasocket.h \
     settloader4svaha.h \
     defcerberus.h \
-    readjsonhelper.h \
     backupmanager.h \
-    matildaprotocolhelper.h \
     checklocalfilesha1.h \
     service4uploadbackup.h \
     socket4uploadbackup.h \
-    settloader4matilda.h \
     svahadefine.h \
     oldbackupcleaner.h \
     svahasharedmemorymanager.h \
     localsockettmplt.h \
-    svahalocalsocket.h
+    svahalocalsocket.h \
+    matilda-bbb-src/shared/readjsonhelper.h \
+    src/matilda/moji_defy.h \
+    src/matilda/matildalimits.h \
+    src/matilda/settloader4matilda.h \
+    src/matilda/settloader4matildadefaults.h \
+    src/matilda/settloader4matildakeys.h \
+    src/shared/networkconverthelper.h \
+    src/shared/sharedmemohelper.h \
+    src/shared/sharedmemoprotocolhelper.h \
+    matilda-bbb-src/shared/pathsresolver.h \
+    src/matilda/serialporthelper.h \
+    matilda-bbb-src/shared/macaddresshelper.h \
+    matilda-bbb-src/shared/runprocess.h \
+    src/matilda/matildaprotocolhelper.h \
+    src/meter/numberconvertation.h \
+    matilda-bbb-src/shared/ifacemanagerhelper.h \
+    src/meter/meterpluginloader.h \
+    src/meter/meteroperations.h
 
 DISTFILES += \
     LICENSE

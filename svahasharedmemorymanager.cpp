@@ -1,8 +1,9 @@
 #include "svahasharedmemorymanager.h"
-#include "matildaprotocolhelper.h"
-#include "settloader4matilda.h"
-#include "moji_defy.h"
-
+#include "src/matilda/matildaprotocolhelper.h"
+#include "src/matilda/settloader4matilda.h"
+#include "src/matilda/moji_defy.h"
+#include "src/shared/sharedmemoprotocolhelper.h"
+#include "src/shared/sharedmemohelper.h"
 //----------------------------------------------------------------------------------------------
 SvahaSharedMemoryManager::SvahaSharedMemoryManager(QObject *parent) : QObject(parent)
 {
@@ -13,8 +14,8 @@ SvahaSharedMemoryManager::SvahaSharedMemoryManager(QObject *parent) : QObject(pa
 
 void SvahaSharedMemoryManager::onThreadStarted()
 {
-    hashStatus = MatildaProtocolHelper::readFromSharedMemory(MTD_EXT_NAME_SVAHA_SERVICE);
-    shmem.setKey(SettLoader4matilda::defSvahaServerMemoName());
+    hashStatus = SharedMemoProtocolHelper::readFromSharedMemory(MTD_EXT_NAME_SVAHA_SERVICE);
+    shmem.setKey(SharedMemoHelper::defSvahaServerMemoName());
 
     hashStatus.remove("crbr");
 
@@ -44,7 +45,7 @@ void SvahaSharedMemoryManager::onTmrAdd2sharedMemoLater()
  * keys
  * crbr - cerberus table
 */
-    if(!MatildaProtocolHelper::write2sharedMemory(hashStatus, shmem, SettLoader4matilda::defSvahaServerSemaName()))
+    if(!SharedMemoHelper::write2sharedMemory(hashStatus, shmem, SharedMemoHelper::defSvahaServerSemaName()))
         emit startTmrAdd2sharedMemoLater();
 }
 //----------------------------------------------------------------------------------------------

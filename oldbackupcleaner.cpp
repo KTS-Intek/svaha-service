@@ -1,6 +1,6 @@
 #include "oldbackupcleaner.h"
 #include <QtCore>
-#include "matildaprotocolhelper.h"
+#include "src/matilda/matildaprotocolhelper.h"
 #include "svahadefine.h"
 
 //--------------------------------------------------------------------------------------------------

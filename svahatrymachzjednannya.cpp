@@ -29,7 +29,8 @@
 #include "backupmanager.h"
 #include "svahasharedmemorymanager.h"
 #include "svahalocalsocket.h"
-#include "settloader4matilda.h"
+#include "src/matilda/settloader4matilda.h"
+#include "src/shared/networkconverthelper.h"
 //----------------------------------------------------------------------------------------------------------------------------
 SvahaTrymachZjednannya::SvahaTrymachZjednannya(QObject *parent) : QTcpServer(parent)
 {
@@ -290,7 +291,7 @@ void SvahaTrymachZjednannya::incomingConnection(qintptr handle)
     qDebug() << "SvahaTrymachZjednannya onNewConnection " << socket->peerAddress() << socket->peerName() << socket->peerPort();
 
     if(!whiteIpList.isEmpty() || !blockThisIp.isEmpty()){
-        QString ipStr = SettLoader4matilda::showNormalIP(socket->peerAddress().toString());
+        QString ipStr = NetworkConvertHelper::showNormalIP(socket->peerAddress().toString());
 
         if( (!whiteIpList.isEmpty() && !whiteIpList.contains(ipStr)) || (!blockThisIp.isEmpty() && blockThisIp.contains(ipStr))){
             socket->close();

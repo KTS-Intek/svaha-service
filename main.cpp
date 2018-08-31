@@ -25,7 +25,6 @@
 int main(int argc, char *argv[])
 {
     QCoreApplication a(argc, argv);
-
     SvahaTrymachZjednannya svaha;
     svaha.initObjects();
     return a.exec();
