@@ -19,21 +19,36 @@
 **  along with svaha-service.  If not, see <http://www.gnu.org/licenses/>.
 **
 ****************************************************************************/
-#include <QCoreApplication>
 
+#ifndef M2MDATASOCKET_H
+#define M2MDATASOCKET_H
 
-#include "m2m-service-src/main/m2mresourcemanager.h"
+//former SocketProsto
 
-//#include "svahatrymachzjednannya.h"
+#include <QTcpSocket>
 
-int main(int argc, char *argv[])
+class M2MDataSocket : public QTcpSocket
 {
-    QCoreApplication a(argc, argv);
+    Q_OBJECT
+public:
+    explicit M2MDataSocket(QObject *parent = nullptr);
 
-    M2MResourceManager manager;
-    manager.startEverything(qApp->arguments().contains("-vv"));
+signals:
+    void mReadData(QByteArray readArr);
 
-//    SvahaTrymachZjednannya svaha;
-//    svaha.initObjects();
-    return a.exec();
-}
+    void iAmDisconn();
+
+public slots:
+
+    void mWrite2socket(QByteArray writeArr);
+
+    void onDisconn();
+
+private slots:
+    void mReadyRead();
+
+private:
+//    QString socketId; wtf ???
+};
+
+#endif // M2MDATASOCKET_H

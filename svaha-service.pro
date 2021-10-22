@@ -6,14 +6,30 @@ CONFIG += c++11
 CONFIG += console
 CONFIG -= app_bundle
 
-# remove possible other optimization flags
-QMAKE_CXXFLAGS_RELEASE -= -O1
-QMAKE_CXXFLAGS_RELEASE -= -O2
-#QMAKE_CXXFLAGS_RELEASE -= -O3
-#QMAKE_CXXFLAGS += -Os
+TEMPLATE = app
 
-# add the desired -O3 if not present
-QMAKE_CXXFLAGS_RELEASE *= -O3
+
+VERSION = 0.0.2
+
+#DEFINES += APPLCTN_NAME=\\\"quick-collect\\\" it is only for GUI
+DEFINES += "MYAPPNAME=\"\\\"svaha-service\\\"\""
+DEFINES += "MYAPPOWNER=\"\\\"KTS-Intek Ltd\\\"\""
+DEFINES += "MYAPPOWNERSITE=\"\\\"https://kts-intek.com\\\"\""
+
+DEFINES += ENABLE_SETTLOADER4MATILDA
+DEFINES += DONOTINCLUDEZBYRATORSHARED
+
+
+DEFINES += QT_DEPRECATED_WARNINGS
+
+## remove possible other optimization flags
+#QMAKE_CXXFLAGS_RELEASE -= -O1
+#QMAKE_CXXFLAGS_RELEASE -= -O2
+##QMAKE_CXXFLAGS_RELEASE -= -O3
+##QMAKE_CXXFLAGS += -Os
+
+## add the desired -O3 if not present
+#QMAKE_CXXFLAGS_RELEASE *= -O3
 
 linux-rasp-pi-g++:{
     DEFINES += ISRASPI=1
@@ -33,76 +49,56 @@ TARGET = svaha-service-bbb
 
 INSTALLS += target
 
-TEMPLATE = app
+include(../../Matilda-units/matilda-base/type-converter/type-converter.pri)
+
+include(../../Matilda-units/ipc/localsockets/localsockets.pri)
+include(../../Matilda-units/ipc/sharedmemory/sharedmemory.pri)
+include(../../Matilda-units/matilda-bbb/matilda-bbb-settings/matilda-bbb-settings.pri)
+include(../../Matilda-units/matilda-base/MatildaIO/MatildaIO.pri)
+include(../../Matilda-units/matilda-base/matilda-bbb-shared/matilda-bbb-shared.pri)
+
+include(../../Matilda-units/matilda-bbb/matilda-bbb-m2m-server/matilda-bbb-m2m-server.pri)
+
 
 SOURCES += main.cpp \
-    svahatrymachzjednannya.cpp \
-    svahadladvoh.cpp \
-    socketdlyatrymacha.cpp \
-    socketprosto.cpp \
-    cerber4matilda.cpp \
-    cerber4matildasocket.cpp \
-    settloader4svaha.cpp \
-    backupmanager.cpp \
-    checklocalfilesha1.cpp \
-    service4uploadbackup.cpp \
-    socket4uploadbackup.cpp \
-    oldbackupcleaner.cpp \
-    svahasharedmemorymanager.cpp \
-    localsockettmplt.cpp \
-    svahalocalsocket.cpp \
-    matilda-bbb-src/shared/readjsonhelper.cpp \
-    src/matilda/settloader4matilda.cpp \
-    src/matilda/settloader4matildadefaults.cpp \
-    src/shared/networkconverthelper.cpp \
-    src/shared/sharedmemohelper.cpp \
-    src/shared/sharedmemoprotocolhelper.cpp \
-    matilda-bbb-src/shared/pathsresolver.cpp \
-    src/matilda/serialporthelper.cpp \
-    matilda-bbb-src/shared/macaddresshelper.cpp \
-    matilda-bbb-src/shared/runprocess.cpp \
-    src/matilda/matildaprotocolhelper.cpp \
-    src/meter/numberconvertation.cpp \
-    matilda-bbb-src/shared/ifacemanagerhelper.cpp \
-    src/meter/meterpluginloader.cpp \
-    src/meter/meteroperations.cpp
+    m2m-service-src/backup/m2mbackupmanager.cpp \
+    m2m-service-src/backup/m2mlocalfilesha1checker.cpp \
+    m2m-service-src/backup/m2moldbackupskiller.cpp \
+    m2m-service-src/connection-holder/m2mconnholderdecoder.cpp \
+    m2m-service-src/connection-holder/m2mconnholderserver.cpp \
+    m2m-service-src/connection-holder/m2mconnholderserverbase.cpp \
+    m2m-service-src/connection-holder/m2mconnholdersocket.cpp \
+    m2m-service-src/data-transmission/m2mbackupconndecoder.cpp \
+    m2m-service-src/data-transmission/m2mbackupserver.cpp \
+    m2m-service-src/data-transmission/m2mbackupsocket.cpp \
+    m2m-service-src/data-transmission/m2mdatasocket.cpp \
+    m2m-service-src/data-transmission/m2mserverfortwo.cpp \
+    m2m-service-src/main/m2mglobalmethods.cpp \
+    m2m-service-src/main/m2mlocalsocket.cpp \
+    m2m-service-src/main/m2mresourcemanager.cpp \
+    m2m-service-src/main/m2msharedmemorywriter.cpp
+
+
 
 HEADERS += \
-    svahatrymachzjednannya.h \
-    svahadladvoh.h \
-    socketdlyatrymacha.h \
-    socketprosto.h \
-    cerber4matilda.h \
-    cerber4matildasocket.h \
-    settloader4svaha.h \
-    defcerberus.h \
-    backupmanager.h \
-    checklocalfilesha1.h \
-    service4uploadbackup.h \
-    socket4uploadbackup.h \
-    svahadefine.h \
-    oldbackupcleaner.h \
-    svahasharedmemorymanager.h \
-    localsockettmplt.h \
-    svahalocalsocket.h \
-    matilda-bbb-src/shared/readjsonhelper.h \
-    src/matilda/moji_defy.h \
-    src/matilda/matildalimits.h \
-    src/matilda/settloader4matilda.h \
-    src/matilda/settloader4matildadefaults.h \
-    src/matilda/settloader4matildakeys.h \
-    src/shared/networkconverthelper.h \
-    src/shared/sharedmemohelper.h \
-    src/shared/sharedmemoprotocolhelper.h \
-    matilda-bbb-src/shared/pathsresolver.h \
-    src/matilda/serialporthelper.h \
-    matilda-bbb-src/shared/macaddresshelper.h \
-    matilda-bbb-src/shared/runprocess.h \
-    src/matilda/matildaprotocolhelper.h \
-    src/meter/numberconvertation.h \
-    matilda-bbb-src/shared/ifacemanagerhelper.h \
-    src/meter/meterpluginloader.h \
-    src/meter/meteroperations.h
+    m2m-service-src/backup/m2mbackupmanager.h \
+    m2m-service-src/backup/m2mlocalfilesha1checker.h \
+    m2m-service-src/backup/m2moldbackupskiller.h \
+    m2m-service-src/connection-holder/m2mconnholderdecoder.h \
+    m2m-service-src/connection-holder/m2mconnholderserver.h \
+    m2m-service-src/connection-holder/m2mconnholderserverbase.h \
+    m2m-service-src/connection-holder/m2mconnholdersocket.h \
+    m2m-service-src/data-transmission/m2mbackupconndecoder.h \
+    m2m-service-src/data-transmission/m2mbackupserver.h \
+    m2m-service-src/data-transmission/m2mbackupsocket.h \
+    m2m-service-src/data-transmission/m2mdatasocket.h \
+    m2m-service-src/data-transmission/m2mserverfortwo.h \
+    m2m-service-src/main/m2mglobalmethods.h \
+    m2m-service-src/main/m2mlocalsocket.h \
+    m2m-service-src/main/m2mresourcemanager.h \
+    m2m-service-src/main/m2mservertypes.h \
+    m2m-service-src/main/m2msharedmemorywriter.h
+
 
 DISTFILES += \
     LICENSE

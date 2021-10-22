@@ -1,0 +1,307 @@
+#include "m2mresourcemanager.h"
+
+
+///[!] matilda-bbb-m2m-server
+#include "src/m2m-settings/settloader4m2mserver.h"
+
+
+///[!] matilda-bbb-settings
+#include "src/matilda/settloader4matilda.h"
+
+
+M2MResourceManager::M2MResourceManager(QObject *parent) : QObject(parent)
+{
+
+}
+
+//----------------------------------------------------------------------
+
+void M2MResourceManager::startEverything(const bool &verboseMode)
+{
+    myParams.verboseMode = verboseMode;
+    QTimer::singleShot(54, this, SLOT(onTmrCreate()));
+}
+
+//----------------------------------------------------------------------
+
+void M2MResourceManager::reloadSettings()
+{
+
+    SettLoader4m2mServer sLoader;
+    if(true){
+
+        const quint16 minDataPort = sLoader.loadOneSett(SETT_SVAHA_DATA_START_PORT).toUInt();
+        const quint16 maxDataPort = minDataPort + sLoader.loadOneSett(SETT_SVAHA_DATA_PORT_COUNT).toUInt();
+
+
+        QString serverDataIP = sLoader.loadOneSett(SETT_MATILDA_CONF_IP).toString();
+        if(serverDataIP.isEmpty())
+            serverDataIP = "kts-m2m.ddns.net";
+
+
+        emit setDataConnectionParams(serverDataIP, minDataPort, maxDataPort);
+    }
+
+
+
+
+//    server4matildaConf = sLoader.loadOneSett(SETT_MATILDA_CONF_IP).toString();
+//       server4matildadev = sLoader.loadOneSett(SETT_MATILDA_DEV_IP).toString();
+
+    if(true){
+
+
+
+        const int zombieMsec = sLoader.loadOneSett(SETT_ZOMBIE_MSEC).toInt();// 15 * 60 * 1000 );
+        const int killTmrMsec = sLoader.loadOneSett(SETT_TIME_2_LIVE).toInt();// 24 * 60 * 60 * 1000);
+
+        sendGlobalSettings(zombieMsec, killTmrMsec);
+
+        const quint16 m2mServiceConnHolderPort = quint16(sLoader.loadOneSett(SETT_SVAHA_SERVICE_PORT).toUInt());
+
+        emit setServicePortSmart(m2mServiceConnHolderPort);
+    }
+
+
+    const QString workDir = sLoader.loadOneSett(SETT_SYNC_WORKDIR).toString();
+    const quint8 syncMode = sLoader.loadOneSett(SETT_SYNC_MODE).toUInt();
+    const quint8 maxFileCount = sLoader.loadOneSett(SETT_SYNC_MAX_FILE_COUNT).toUInt();
+
+    const quint32 maxSizeMacTable = sLoader.loadOneSett(SETT_SYNC_MAX_SIZE_MAC_TABLE).toUInt();
+
+    const quint32 maxCountSha1LocalFsParallel = sLoader.loadOneSett(SETT_SYNC_MAX_COUNT_SHA1_CHRSPRLL).toUInt();
+
+    const qint32 maxSizeSyncRequest = sLoader.loadOneSett(SETT_SYNC_MAX_SIZE_SYNC_REQUEST).toInt();
+    const qint32 maxCountSyncRequestParallel = sLoader.loadOneSett(SETT_SYNC_MAX_COUNT_SYNQ_RQSTPRLL).toUInt();
+
+     const qint32 maxYearSave = sLoader.loadOneSett(SETT_SYNC_MAX_YEAR_SAVE).toInt();
+     const qint32 minUniqMacs = sLoader.loadOneSett(SETT_SYNC_MIN_UNIQ_MAC_FILES).toInt();
+
+     emit setSyncParams(workDir, syncMode, maxFileCount, maxSizeMacTable, maxCountSha1LocalFsParallel, maxSizeSyncRequest, maxCountSyncRequestParallel, maxYearSave, minUniqMacs);
+
+     emit setBackupWorkDirectory(workDir);
+
+//    //settings to M2M server
+
+
+
+//    //settings to backupmanager
+//    void setSyncParams(QString workDir, quint8 syncMode, quint8 maxFileCount, quint32 maxSizeMacTable, quint32 maxCountSha1LocalFsParallel, qint32 maxSizeSyncRequest, quint32 maxCountSyncRequestParallel, qint32 maxYearSave, qint32 minUniqMacs);
+
+}
+
+void M2MResourceManager::sendGlobalSettings(const int &zombieMsec, const int &msecAlive)
+{
+
+    SettLoader4matilda sLoader;
+    emit setAllowAndBlockList(sLoader.loadOneSett(SETT_ALLOW_IP_LIST).toStringList(), sLoader.loadOneSett(SETT_BLOCK_IP_LIST).toStringList());
+    emit setTimeouts(zombieMsec, msecAlive, sLoader.loadOneSett(SETT_TCP_READ_TO).toInt(), sLoader.loadOneSett(SETT_TCP_READ_TOB).toInt());
+
+//    emit setNewTimeOutNow(sLoader.loadOneSett(SETT_TCP_READ_TO).toInt(), sLoader.loadOneSett(SETT_TCP_READ_TOB).toInt(), sLoader.loadOneSett(SETT_TCP_MNOZNYK).toLongLong());
+
+
+
+          //    void setTimeouts(int zombieMsec, int timeOutGMsec, int timeOutBMsec);
+
+}
+
+//----------------------------------------------------------------------
+
+void M2MResourceManager::killApp()
+{
+    emit killAllObjects();
+    QThread::sleep(1);
+    qApp->exit(APP_CODE_RESTART);
+}
+
+//----------------------------------------------------------------------
+
+void M2MResourceManager::onTmrCreate()
+{
+    auto *extSocket = createLocalSocket(myParams.verboseMode);
+    auto *writer = createSharedMemoryWriter(myParams.verboseMode);
+    auto *server = createM2MServer(myParams.verboseMode, writer, extSocket);
+//    auto *manager =
+            createBackupManager(myParams.verboseMode, server);
+
+
+
+
+    QTimer::singleShot(111, this, SIGNAL(goGoGo()));
+
+
+}
+
+//----------------------------------------------------------------------
+
+void M2MResourceManager::onFailed2startServer(QString message)
+{
+    myParams.m2mServiceFailsConter++;
+
+    if(myParams.verboseMode)
+        qDebug() << "M2MResourceManager " << myParams.m2mServiceFailsConter << message;
+
+    if(myParams.m2mServiceFailsConter > 10)
+        killApp();
+}
+
+void M2MResourceManager::addEvent2log(QString message)
+{
+    qDebug() << "addEvent2log " << message;
+
+}
+
+//----------------------------------------------------------------------
+
+M2MLocalSocket *M2MResourceManager::createLocalSocket(const bool &verboseMode)
+{
+    M2MLocalSocket *extSocket = new M2MLocalSocket(verboseMode);
+
+    extSocket->activeDbgMessages = myParams.activeDbgMessages;
+    extSocket->initializeSocket(MTD_EXT_NAME_SVAHA_SERVICE);
+
+    QThread *extSocketThrd = new QThread;
+    extSocketThrd->setObjectName("M2MLocalSocket");
+    extSocket->moveToThread(extSocketThrd);
+
+
+    connect(extSocket, SIGNAL(destroyed(QObject*)), extSocketThrd, SLOT(quit()));
+    connect(extSocketThrd, SIGNAL(finished()), extSocketThrd, SLOT(deleteLater()));
+
+#ifdef ENABLE_VERBOSE_SERVER
+    connect(extSocket, &M2MLocalSocket::appendDbgExtData, this, &ZbyratorManager::appendDbgExtData );
+#endif
+    connect(extSocketThrd, &QThread::started, extSocket, &M2MLocalSocket::onThreadStarted);
+
+    connect(extSocket, &M2MLocalSocket::onConfigChanged , this, &M2MResourceManager::reloadSettings  );
+    connect(extSocket, &M2MLocalSocket::killApp         , this, &M2MResourceManager::killApp  );
+
+    connect(this, &M2MResourceManager::killAllObjects, extSocket, &M2MLocalSocket::killAllObjects);
+
+    connect(extSocket, SIGNAL(destroyed(QObject*)), extSocketThrd, SLOT(quit()));
+    connect(extSocketThrd, SIGNAL(finished()), extSocketThrd, SLOT(deleteLater()));
+
+
+
+//    connect(extSocket, &M2MLocalSocket::command4dev     , zbyrator, &MeterManager::command4devStr      );
+
+//    extSocketThrd->start();
+    connect(this, SIGNAL(goGoGo()), extSocketThrd, SLOT(start()));
+
+    return extSocket;
+
+}
+
+//----------------------------------------------------------------------
+
+M2MSharedMemoryWriter *M2MResourceManager::createSharedMemoryWriter(const bool &verboseMode)
+{
+    //    case MTD_EXT_NAME_SVAHA_SERVICE         : sharedMemoKey = SharedMemoHelper::defSvahaServerMemoName()    ; semaName = SharedMemoHelper::defSvahaServerSemaName()           ; break;
+
+    M2MSharedMemoryWriter *writer = new M2MSharedMemoryWriter(
+                SharedMemoHelper::defSvahaServerMemoName(),
+                SharedMemoHelper::defSvahaServerSemaName(),
+                verboseMode);
+
+    QThread *thread = new QThread;
+    thread->setObjectName("M2MSharedMemoryWriter");
+    writer->moveToThread(thread);
+
+    connect(thread, SIGNAL(started()), writer, SLOT(onThreadStarted()));
+    connect(writer, SIGNAL(destroyed(QObject*)), thread, SLOT(quit()));
+    connect(thread, SIGNAL(finished()), thread, SLOT(deleteLater()));
+
+
+
+
+
+    connect(this, &M2MResourceManager::killAllObjects, writer, &M2MSharedMemoryWriter::flushAllNowAndDie);
+
+//    thread->start();
+    connect(this, SIGNAL(goGoGo()), thread, SLOT(start()));
+
+    return writer;
+}
+
+//----------------------------------------------------------------------
+
+M2MConnHolderServer *M2MResourceManager::createM2MServer(const bool &verboseMode, M2MSharedMemoryWriter *writer, M2MLocalSocket *extSocket)
+{
+    M2MConnHolderServer *server = new M2MConnHolderServer(verboseMode);
+
+    QThread *thread = new QThread;
+    thread->setObjectName("M2MConnHolderServer");
+    server->moveToThread(thread);
+
+
+    connect(thread, SIGNAL(started()), server, SLOT(onThreadStarted()));
+    connect(server, SIGNAL(destroyed(QObject*)), thread, SLOT(quit()));
+    connect(thread, SIGNAL(finished()), thread, SLOT(deleteLater()));
+
+//shared memory
+    connect(server, &M2MConnHolderServer::onConnectionTableChanged, writer, &M2MSharedMemoryWriter::onConnectionTableChanged);
+    connect(server, &M2MConnHolderServer::onConnectionTableData, writer, &M2MSharedMemoryWriter::onConnectionTableData);
+
+    connect(writer, &M2MSharedMemoryWriter::sendConnectionTable, server, &M2MConnHolderServer::sendConnectionTable);
+
+    //settings
+    connect(this, &M2MResourceManager::setTimeouts, server, &M2MConnHolderServer::setTimeouts);
+    connect(this, &M2MResourceManager::setBackupWorkDirectory, server, &M2MConnHolderServer::setBackupWorkDirectory);
+    connect(this, &M2MResourceManager::setDataConnectionParams, server, &M2MConnHolderServer::setDataConnectionParams);
+
+    connect(this, &M2MResourceManager::setServicePortSmart, server, &M2MConnHolderServer::setServicePortSmart);
+
+     //local socket
+    connect(extSocket, &M2MLocalSocket::killClientNow, server, &M2MConnHolderServer::killClientNow);
+
+
+    connect(this, &M2MResourceManager::killAllObjects, server, &M2MConnHolderServer::stopAllSlot);//, &M2MSharedMemoryWriter::flushAllNowAndDie);
+
+    connect(server, &M2MConnHolderServer::onFailed2startServer, this, &M2MResourceManager::onFailed2startServer);
+    if(verboseMode)
+        connect(server, &M2MConnHolderServer::addEvent2log, this, &M2MResourceManager::addEvent2log);
+    connect(server, &M2MConnHolderServer::gimmeSettings, this, &M2MResourceManager::reloadSettings);
+
+//    thread->start();
+    connect(this, SIGNAL(goGoGo()), thread, SLOT(start()));
+
+    return server;
+}
+
+//----------------------------------------------------------------------
+
+M2MBackupManager *M2MResourceManager::createBackupManager(const bool &verboseMode, M2MConnHolderServer *server)
+{
+
+    M2MBackupManager *manager = new M2MBackupManager(verboseMode);
+
+    QThread *thread = new QThread;
+    thread->setObjectName("M2MBackupManager");
+    manager->moveToThread(thread);
+
+
+
+    connect(thread, SIGNAL(started()), manager, SLOT(onThreadStarted()));
+    connect(manager, SIGNAL(destroyed(QObject*)), thread, SLOT(quit()));
+    connect(thread, SIGNAL(finished()), thread, SLOT(deleteLater()));
+
+
+    connect(server, &M2MConnHolderServer::onSyncRequestRemoteSha1isEqual, manager, &M2MBackupManager::onSyncRequestRemoteSha1isEqual);
+    connect(server, &M2MConnHolderServer::onSyncFileDownloaded          , manager, &M2MBackupManager::onSyncFileDownloaded);
+    connect(server, &M2MConnHolderServer::onConnectedTheseMacs          , manager, &M2MBackupManager::onConnectedTheseMacs);
+    connect(server, &M2MConnHolderServer::onDisconnectedTheseMacs       , manager, &M2MBackupManager::onDisconnectedTheseMacs);
+
+    connect(manager, &M2MBackupManager::checkBackup4thisMac, server, &M2MConnHolderServer::checkBackup4thisMac);
+
+    connect(this, &M2MResourceManager::setSyncParams    , manager, &M2MBackupManager::setSyncParams);
+
+
+    connect(manager, &M2MBackupManager::gimmeSettings, this, &M2MResourceManager::reloadSettings);
+//    connect(this, SIGNAL(checkSett2all())                                    , backup, SLOT(reloadSettings())                                    );
+
+    connect(this, SIGNAL(goGoGo()), thread, SLOT(start()));
+    return manager;
+}
+
+
+//----------------------------------------------------------------------
