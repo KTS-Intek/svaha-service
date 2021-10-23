@@ -71,6 +71,7 @@ public:
 signals:
     void syncDone(QStringList macL, QString lastSha1base64, qint64 msecCreated);//на віддаленому пристрої ХЕШ сума файлу змінилась, завантаження здійснено
 
+    void onForceReading();
 
 public slots:
     //from socket

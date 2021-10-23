@@ -13,7 +13,7 @@ M2MBackupServer::M2MBackupServer(bool verboseMode, quint8 backupSessionId, QObje
     myParams.backupSessionId = backupSessionId;
 
     setMaxPendingConnections(1);
-    QTimer::singleShot(1 * 60 * 60 * 1000, this, SLOT(onZombie()) );//відвожу час 1 годину
+    QTimer::singleShot(1 * 60 * 60 * 1000, this, SLOT(onTime2die()) );//відвожу час 1 годину
 }
 
 //----------------------------------------------------------------------------------------------------------------
@@ -124,15 +124,32 @@ void M2MBackupServer::onOneDisconn()
         qDebug() << "Service4uploadBackup onOneDisconn ";
 
     myParams.connCounter = -1;
-    onZombie();
+    killTheConnection("M2MBackupServer::onOneDisconn");
 }
 
 //----------------------------------------------------------------------------------------------------------------
 
 void M2MBackupServer::onZombie()
 {
+    killTheConnection("M2MBackupServer::onZombie");
+}
+
+void M2MBackupServer::onTime2die()
+{
+    killTheConnection("M2MBackupServer::onTime2die");
+
+}
+
+void M2MBackupServer::onDieAfterSync()
+{
+    killTheConnection("M2MBackupServer::onDieAfterSync");
+
+}
+
+void M2MBackupServer::killTheConnection(QString message)
+{
     if(myParams.verboseMode)
-        qDebug() << "Service4uploadBackup onZombie " ;
+        qDebug() << "M2MBackupServer killTheConnection message " ;
     myParams.connCounter = -1;
     close();
     emit stopAllNow();
@@ -153,7 +170,7 @@ void M2MBackupServer::onDestrSignl()
 void M2MBackupServer::syncDone(QStringList macL, QString lastSha1base64, qint64 msecCreated)
 {
     emit onSyncDone(myParams.backupSessionId, macL, lastSha1base64, msecCreated);
-    QTimer::singleShot(55, this, SLOT(onZombie()) );
+    QTimer::singleShot(55, this, SLOT(onDieAfterSync()) );
 }
 
 //----------------------------------------------------------------------------------------------------------------

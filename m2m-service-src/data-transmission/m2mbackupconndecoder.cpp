@@ -35,6 +35,7 @@ void M2MBackupConnDecoder::setBackupParams(QByteArray write4authorizeBase64, QSt
     myParams.lastSha1Base64 = lastSha1base64;
     myParams.workDir = workDir;
 
+    QTimer::singleShot(11, this, SIGNAL(onForceReading()));
 
 }
 
@@ -93,6 +94,8 @@ void M2MBackupConnDecoder::decodeReadData(const QVariant &dataVar, const quint16
     }
 
     srezult = getFunctionRezult4aCommand(command, dataVar, doAfter);
+    sendAfunctionRezult(srezult);
+
     if(doAfter)
         onDoAfter(command);
 
@@ -142,6 +145,7 @@ FunctionRezultJSON M2MBackupConnDecoder::onCOMMAND_ZULU(const QVariantHash &hash
 //            stopAll = false;
 
 //             mWrite2SocketJSON(jObj, COMMAND_AUTHORIZE, 2);
+            lastObjSett.useJsonMode = false;
             return FunctionRezultJSON(jObj, COMMAND_AUTHORIZE);
         }
     }
@@ -241,7 +245,7 @@ void M2MBackupConnDecoder::saveBackupArrAsFile()
         myParams.lastSha1Base64 = QCryptographicHash::hash(myParams.backupArr, QCryptographicHash::Sha1).toBase64(QByteArray::OmitTrailingEquals);// toHex().toLower();// toBase64(QByteArray::OmitTrailingEquals);
     if(myParams.lastSha1Base64.isEmpty() || myParams.backupArr.isEmpty()){
         if(lastObjSett.verboseMode)
-            qDebug() << "noSha1=" << myParams.lastSha1Base64.isEmpty() << ", noData=" << myParams.backupArr.isEmpty() << ", dataLen=" << myParams.backupArrLen;
+            qDebug() << "M2MBackupConnDecoder::noSha1=" << myParams.lastSha1Base64.isEmpty() << ", noData=" << myParams.backupArr.isEmpty() << ", dataLen=" << myParams.backupArrLen;
         return;
     }
 
@@ -252,7 +256,7 @@ void M2MBackupConnDecoder::saveBackupArrAsFile()
 //    QString workDir = SettLoader4svaha().loadOneSett(SETT_SYNC_WORKDIR).toString();
     if(myParams.workDir.isEmpty()){
         if(lastObjSett.verboseMode)
-            qDebug() << "workDir is not valid " << myParams.workDir;
+            qDebug() << "M2MBackupConnDecoder::workDir is not valid " << myParams.workDir;
         return;
     }
 
@@ -267,27 +271,48 @@ void M2MBackupConnDecoder::saveBackupArrAsFile()
     QString fileName = myParams.lastSha1Base64 + "_" + fileNameFromAboutObject(macL, myParams.lastSha1Base64.length());
     fileName = fileName.replace("/", "=");
 
-    QSaveFile sFile(QString("%1/%2").arg(path2dir).arg(fileName));
-    if(sFile.open(QSaveFile::WriteOnly|QSaveFile::Unbuffered)){
-        sFile.write(myParams.backupArr);
-        if(sFile.commit()){
-            if(lastObjSett.verboseMode)
-                qDebug() << "backup saved " << path2dir << fileName ;
 
-            emit syncDone(macL, myParams.lastSha1Base64, myParams.msecCreated);
-            return;
+    for(int i = 0; i < 5; i++){
+
+        QSaveFile sFile(QString("%1/%2").arg(path2dir).arg(fileName));
+        if(sFile.open(QSaveFile::WriteOnly|QSaveFile::Unbuffered)){
+            sFile.write(myParams.backupArr);
+            if(sFile.commit()){
+                if(lastObjSett.verboseMode)
+                    qDebug() << "M2MBackupConnDecoder::backup saved " << path2dir << fileName ;
+
+                emit syncDone(macL, myParams.lastSha1Base64, myParams.msecCreated);
+                return;
+            }
+            if(lastObjSett.verboseMode)
+                qDebug() << "M2MBackupConnDecoder::can't save file " << path2dir << fileName << sFile.errorString();
+            emit addError2Log(QString("Failed to save a backup file %1").arg(sFile.errorString()));
+//            return;
+
+
         }
+
+
+
+        emit addError2Log(QString("Failed to create a backup file %1").arg(sFile.errorString()));
         if(lastObjSett.verboseMode)
-            qDebug() << "can't save file " << path2dir << fileName << sFile.errorString();
-        emit addError2Log(QString("Failed to save a backup file %1").arg(sFile.errorString()));
-        return;
+            qDebug() << "M2MBackupConnDecoder:: can't creat file " << fileName << sFile.errorString();
+
+
+        QFileInfo fi(fileName);
+        if(fi.exists())
+            return;
+
+        const int chopLen = 10 * (5 - i) + 20;
+        if(fileName.length() > chopLen && chopLen > 20)
+            fileName.chop(chopLen - 20);
+        emit addError2Log(QString("Try to save with a smaller fileName %1").arg(fileName));
+
+        if(lastObjSett.verboseMode)
+            qDebug() << "M2MBackupConnDecoder:: save fileName try " << i << chopLen << fileName ;
     }
 
 
-
-    emit addError2Log(QString("Failed to create a backup file %1").arg(sFile.errorString()));
-    if(lastObjSett.verboseMode)
-        qDebug() << "Socket4uploadBackup can't creat file " << fileName << sFile.errorString();
 
 
 
@@ -395,9 +420,13 @@ QString M2MBackupConnDecoder::fileNameFromAboutObject(QStringList &macL, const i
         }
     }
 
-    if(lastObjSett.verboseMode)
+    const QString fileName = l.join("_");
+    if(lastObjSett.verboseMode){
         qDebug() << "fileNameFromAboutObject=" << l;
-    return l.join("_");
+        qDebug() << "fileNameFromAboutObject=" << fileName;
+
+    }
+    return fileName;
 }
 
 //-------------------------------------------------------------------------------------

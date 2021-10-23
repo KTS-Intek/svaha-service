@@ -56,6 +56,11 @@ public slots:
 
     void onZombie();
 
+    void onItIsTime2die();
+
+
+    void killTheConnection(QString message);
+
     void add2TmpBuff(QByteArray buffArr);
 
 private:

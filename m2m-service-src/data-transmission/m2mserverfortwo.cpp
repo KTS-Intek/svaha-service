@@ -33,8 +33,12 @@ M2MServerForTwo::M2MServerForTwo(const qint32 &msec4zombie, const qint32 &msecAl
     myStateParams.msec4zombie = msec4zombie;
 //    myStateParams.msecAlive = msecAlive;
 
+    if(myStateParams.verboseMode)
+        qDebug() << "M2MServerForTwo " << msec4zombie << msecAlive ;
+
+
     if(msecAlive > 0)
-        QTimer::singleShot(msecAlive, this, SLOT(onZombie()));
+        QTimer::singleShot(msecAlive, this, SLOT(onItIsTime2die()));
 }
 
 quint16 M2MServerForTwo::findFreePort(const quint16 &minPort, const quint16 &maxPort)
@@ -48,6 +52,9 @@ quint16 M2MServerForTwo::findFreePort(const quint16 &minPort, const quint16 &max
 
 QTimer *M2MServerForTwo::createZombieTimer(const int &msec, const QString &tmrName)
 {
+    if(myStateParams.verboseMode)
+        qDebug() << "createZombieTimer " << msec << tmrName;
+
     QTimer *zombieTmr = new QTimer(this);
     zombieTmr->setObjectName(tmrName);
     zombieTmr->setInterval(msec);// sLoader.loadOneSett(SETT_ZOMBIE_MSEC).toInt() );//15 * 60 * 1000);
@@ -77,7 +84,7 @@ void M2MServerForTwo::incomingConnection(qintptr handle)
 
         if(myStateParams.connCounter > 1)
             return;
-        onZombie();
+        killTheConnection("bad socket params");
         return;
     }
 
@@ -136,13 +143,24 @@ void M2MServerForTwo::onOneDisconn()
         qDebug() << "M2MServerForTwo onOneDisconn ";
 
     myStateParams.connCounter = -1;
-    onZombie();
+    killTheConnection("onOneDisconn");
 }
 
 void M2MServerForTwo::onZombie()
 {
+    killTheConnection(QObject::sender()->objectName());
+}
+
+void M2MServerForTwo::onItIsTime2die()
+{
+    killTheConnection("onItIsTime2die");
+
+}
+
+void M2MServerForTwo::killTheConnection(QString message)
+{
     if(myStateParams.verboseMode)
-        qDebug() << "M2MServerForTwo onZombie " ;
+        qDebug() << "M2MServerForTwo killTheConnection " << message;
     myStateParams.connCounter = -1;
     close();
     emit stopAllNow();
@@ -157,7 +175,7 @@ void M2MServerForTwo::add2TmpBuff(QByteArray buffArr)
 
     myStateParams.buffArr.append(buffArr);
     if(myStateParams.buffArr.length() > 50000)
-        onZombie();
+        killTheConnection("buffArr.length ");
 //        this->buffArr = this->buffArr.mid(this->buffArr.length() - 50000);
     if(myStateParams.verboseMode)
         qDebug() << "bufferization enabled ";

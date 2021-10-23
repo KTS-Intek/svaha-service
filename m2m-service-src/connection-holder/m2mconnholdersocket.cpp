@@ -15,6 +15,7 @@
 M2MConnHolderSocket::M2MConnHolderSocket(QObject *parent) : QTcpSocket(parent)
 {
     stopAll = false;
+    decoder = 0;
 }
 
 //-------------------------------------------------------------------------------------
@@ -83,16 +84,13 @@ void M2MConnHolderSocket::createBackupReceiver(QString workDir, quint16 startPor
 
 void M2MConnHolderSocket::onTimeoutsChanged(ConnectionTimeouts socketTimeouts)
 {
-    setTimeouts(socketTimeouts.timeOutGMsec, socketTimeouts.timeOutBMsec);;
+    this->socketTimeouts = socketTimeouts;
+
+    emit setZombieMsec(socketTimeouts.zombieMsec);
+
 }
 
-//-------------------------------------------------------------------------------------
 
-void M2MConnHolderSocket::setTimeouts(const int &timeoutGMsec, const int &timeoutBMsec)
-{
-    socketTimeouts.timeOutGMsec = timeoutGMsec;
-    socketTimeouts.timeOutBMsec = timeoutBMsec;
-}
 
 //-------------------------------------------------------------------------------------
 
@@ -124,17 +122,24 @@ void M2MConnHolderSocket::onDisconnExt(const bool &allowdecoder)
 
 void M2MConnHolderSocket::createDecoder(const bool &verboseMode)
 {
-    decoder = new M2MConnHolderDecoder(verboseMode, this);
+    decoder = new M2MConnHolderDecoder(peerAddress(), socketDescriptor(), verboseMode, this);
 
     connect(decoder, &M2MConnHolderDecoder::closeTheConnection, this, &M2MConnHolderSocket::onDisconnByDecoder);
     connect(decoder, &M2MConnHolderDecoder::createBackupReceiver, this, &M2MConnHolderSocket::createBackupReceiver);
 
     connect(decoder, &M2MConnHolderDecoder::onForceReading, this, &M2MConnHolderSocket::mReadyRead);
 
+    connect(decoder, &M2MConnHolderDecoder::writeThisDataJSON, this, &M2MConnHolderSocket::mWrite2SocketJSON);
+
+
+
     connect(decoder, &M2MConnHolderDecoder::disconnLater, [=](qint64 msec){
         QTimer::singleShot(msec, this, SLOT(onDisconnByDecoder()));
     });
 
+    connect(this, &M2MConnHolderSocket::setZombieMsec, decoder, &M2MConnHolderDecoder::setZombieMsec)
+;
+    decoder->createZombieTmr(socketTimeouts.zombieMsec);
 
 
 
@@ -160,10 +165,13 @@ void M2MConnHolderSocket::readFunction()
     if(!(state() == QAbstractSocket::ConnectedState ))
         return;
 
+    if(bytesAvailable() < 1)
+        return;
 
    if(!decoder->checkStartReading(this, decoder->timeObjectSmpl.elapsed())){
        return;
    }
+
 
 
     if(decoder->lastObjSett.useJsonMode){
@@ -223,6 +231,16 @@ void M2MConnHolderSocket::onThreadStartedExt(const bool &verboseMode)
     createDecoder(verboseMode);
 
     emit onThisDecoderReady(decoder);
+
+    connect(this, &M2MConnHolderSocket::disconnected, this, &M2MConnHolderSocket::onDisconn);
+    if(state() == QAbstractSocket::ConnectedState ){
+        QTimer::singleShot(socketTimeouts.msecAlive, this, SLOT(onDisconn()));//SETT_TIME_2_LIVE
+        return;
+    }
+
+    QTimer::singleShot(11, this, SLOT(onDisconn()));
+
+
 }
 
 //-------------------------------------------------------------------------------------

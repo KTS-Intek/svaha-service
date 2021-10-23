@@ -59,6 +59,13 @@ public slots:
     void onOneDisconn();
     void onZombie();
 
+    void onTime2die();
+
+    void onDieAfterSync();
+
+
+    void killTheConnection(QString message);
+
     void onDestrSignl();
 
     void syncDone(QStringList macL, QString lastSha1base64, qint64 msecCreated);//на віддаленому пристрої ХЕШ сума файлу змінилась, завантаження здійснено

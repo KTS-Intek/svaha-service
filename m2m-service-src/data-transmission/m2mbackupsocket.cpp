@@ -7,8 +7,7 @@ M2MBackupSocket::M2MBackupSocket(QObject *parent) : QTcpSocket(parent)
     connect(this, &M2MBackupSocket::readyRead, this, &M2MBackupSocket::mReadyRead);
     connect(this, &M2MBackupSocket::disconnected, this ,&M2MBackupSocket::onDisconn);
 
-    if(bytesAvailable() > 0)
-        QTimer::singleShot(11, this, SLOT(mReadyRead()) );
+
 }
 
 //-----------------------------------------------------------------------------------------------------------
@@ -41,7 +40,6 @@ void M2MBackupSocket::createDecoder(const bool &verboseMode, const QByteArray &w
 {
     decoder = new M2MBackupConnDecoder(verboseMode, this);
 
-    decoder->setBackupParams( write4authorizeBase64, lastSha1base64, workDir);
 
     connect(decoder, &M2MBackupConnDecoder::disconnLater  , this, &M2MBackupSocket::disconnLater);
     //    connect(decoder, &M2MBackupConnDecoder::createBackupReceiver, this, &M2MBackupConnDecoder::createBackupReceiver);
@@ -53,6 +51,10 @@ void M2MBackupSocket::createDecoder(const bool &verboseMode, const QByteArray &w
     connect(decoder, &M2MBackupConnDecoder::syncDone, this, &M2MBackupSocket::syncDone);
 
     connect(this, &M2MBackupSocket::restartTimeObject, decoder, &M2MBackupConnDecoder::restartTimeObject);
+
+    decoder->setBackupParams( write4authorizeBase64, lastSha1base64, workDir);
+
+    connect(decoder, &M2MBackupConnDecoder::onForceReading, this, &M2MBackupSocket::mReadyRead);
 
 }
 
@@ -88,7 +90,7 @@ void M2MBackupSocket::mWrite2SocketJSON(QJsonObject data, quint16 command)
 void M2MBackupSocket::mWrite2Socket(QVariant data, quint16 command)
 {
     if(decoder->lastObjSett.verboseMode)
-        qDebug() << "mWriteToSocket " << command;
+        qDebug() << "M2MBackupSocket::mWriteToSocket " << command;
     if(!isConnOpen())
         return;
 
@@ -101,7 +103,7 @@ void M2MBackupSocket::mWrite2Socket(QVariant data, quint16 command)
     decoder->speedStat.writeCounter++;
     //    if(socketcache.verboseMode)
     if(decoder->lastObjSett.verboseMode)
-        qDebug() << "UconConnectionHolder lastByteWrt= " << QTime::currentTime().toString("hh:mm:ss.zzz") << socketDescriptor()
+        qDebug() << "M2MBackupSocket:: lastByteWrt= " << QTime::currentTime().toString("hh:mm:ss.zzz") << socketDescriptor()
                                          << decoder->speedStat.lastByteWrt << command << decoder->speedStat.totalBytesTransm << decoder->speedStat.writeCounter;
 
     emit restartTimeObject();
@@ -135,6 +137,8 @@ void M2MBackupSocket::readFunction()
     if(!(state() == QAbstractSocket::ConnectedState ))
         return;
 
+    if(bytesAvailable() < 1)
+        return;
 
    if(!decoder->checkStartReading(this, decoder->timeObjectSmpl.elapsed())){
        return;
@@ -155,7 +159,7 @@ void M2MBackupSocket::readFunction()
 
         emit restartTimeObject();
         if(hasErr || readList.isEmpty()){
-            qDebug()<< "readServer:"<< readList;
+            qDebug()<< "M2MBackupSocket::readServer:"<< readList;
             decoder->speedStat.badByteReceived += addLen;
         }else{
             for(int i = 0, iMax = readList.size(); i < iMax; i++)
@@ -179,7 +183,7 @@ void M2MBackupSocket::readFunction()
 
     if(hasErr){
         emit addError2Log(QString("broken packet. ip: %1,bytesAvailable: %2, blockSize: %3").arg(decoder->connId.peerAddress).arg(bytesAvailable()).arg(blockSize));
-        qDebug()<< "readServer:" << blockSize << bytesAvailable() << readAll().toHex();
+        qDebug()<< "M2MBackupSocket::readServer:" << blockSize << bytesAvailable() << readAll().toHex();
 
         decoder->lastDecodeAllowedCommand = 0;
         mWrite2Socket(decoder->onCommandErrorLastOperation(ERR_CORRUPTED_DATA).s_data, COMMAND_ERROR_CODE);

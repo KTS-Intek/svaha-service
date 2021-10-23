@@ -28,6 +28,9 @@ void M2MResourceManager::reloadSettings()
 {
 
     SettLoader4m2mServer sLoader;
+
+    sLoader.checkDefSett(myParams.verboseMode);
+
     if(true){
 
         const quint16 minDataPort = sLoader.loadOneSett(SETT_SVAHA_DATA_START_PORT).toUInt();
@@ -118,11 +121,12 @@ void M2MResourceManager::killApp()
 
 void M2MResourceManager::onTmrCreate()
 {
-    auto *extSocket = createLocalSocket(myParams.verboseMode);
+    M2MLocalSocket *extSocket = createLocalSocket(myParams.verboseMode);
+
     auto *writer = createSharedMemoryWriter(myParams.verboseMode);
     auto *server = createM2MServer(myParams.verboseMode, writer, extSocket);
 //    auto *manager =
-            createBackupManager(myParams.verboseMode, server);
+    createBackupManager(myParams.verboseMode, server);
 
 
 
@@ -144,6 +148,8 @@ void M2MResourceManager::onFailed2startServer(QString message)
     if(myParams.m2mServiceFailsConter > 10)
         killApp();
 }
+
+//----------------------------------------------------------------------
 
 void M2MResourceManager::addEvent2log(QString message)
 {
@@ -252,7 +258,8 @@ M2MConnHolderServer *M2MResourceManager::createM2MServer(const bool &verboseMode
     connect(this, &M2MResourceManager::setServicePortSmart, server, &M2MConnHolderServer::setServicePortSmart);
 
      //local socket
-    connect(extSocket, &M2MLocalSocket::killClientNow, server, &M2MConnHolderServer::killClientNow);
+
+        connect(extSocket, &M2MLocalSocket::killClientNow, server, &M2MConnHolderServer::killClientNow);
 
 
     connect(this, &M2MResourceManager::killAllObjects, server, &M2MConnHolderServer::stopAllSlot);//, &M2MSharedMemoryWriter::flushAllNowAndDie);

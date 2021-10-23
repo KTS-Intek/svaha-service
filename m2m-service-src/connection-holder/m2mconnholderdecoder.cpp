@@ -4,9 +4,14 @@
 
 //---------------------------------------------------------------------------------------
 
-M2MConnHolderDecoder::M2MConnHolderDecoder(const bool &verboseMode, QObject *parent) : DecodeMatildaProtocolBase(verboseMode, parent)
+M2MConnHolderDecoder::M2MConnHolderDecoder(const QHostAddress &peerAddress, const qintptr &socketDescriptor, const bool &verboseMode, QObject *parent)
+    : DecodeMatildaProtocolBase(verboseMode, parent)
 {
+    connId.socketDescriptor = QString::number(socketDescriptor);
+    connId.peerAddress = NetworkConvertHelper::showNormalIP(peerAddress);
+
     restartTimeObject();
+
 
 }
 
@@ -14,7 +19,7 @@ bool M2MConnHolderDecoder::isCommandAllowed4thisConnectedDev(const quint16 &comm
 {
     bool r = false;
     switch(connectedDevType){
-    case REM_DEV_MATILDA_UNKNWN : r = (command == COMMAND_YOUR_ID_AND_MAC)          ; break; //активний сокет від пристрою опитування, один раз передає свої дані реєстарції
+    case REM_DEV_MATILDA_UNKNWN : r = (command == COMMAND_YOUR_ID_AND_MAC || command == COMMAND_CONNECT_ME_2_THIS_ID_OR_MAC)          ; break; //активний сокет від пристрою опитування, один раз передає свої дані реєстарції
     case REM_DEV_MATILDA_DEV    : r = getCommand4remDevMatilda().contains(command)  ; break;
     case REM_DEV_MATILDA_CONF   : r = getCommand4remDevUCon().contains(command)     ; break;
     }
@@ -29,19 +34,19 @@ QList<quint16> M2MConnHolderDecoder::getCommand4remDevMatilda()
             << COMMAND_I_AM_A_ZOMBIE
 
             << COMMAND_CHECK_BACKUP_FILE_HASH_SUMM;
-               ;
+    ;
 }
 
 //---------------------------------------------------------------------------------------
 
 QList<quint16> M2MConnHolderDecoder::getCommand4remDevUCon()
 {
-  return QList<quint16>()
-          << COMMAND_I_AM_A_ZOMBIE
+    return QList<quint16>()
+            << COMMAND_I_AM_A_ZOMBIE
 
-          << COMMAND_CONNECT_ME_2_THIS_ID_OR_MAC //запит від ПЗ конфігурації на з’єднання
+            << COMMAND_CONNECT_ME_2_THIS_ID_OR_MAC //запит від ПЗ конфігурації на з’єднання
 
-             ;
+               ;
 }
 
 QString M2MConnHolderDecoder::getRemoteIpAndDescr()
@@ -66,7 +71,7 @@ QStringHash M2MConnHolderDecoder::getObjIfo(const QVariantMap &h, const bool &ad
         if(addVersion)
             hashAboutObj.insert("vrsn", QString::number(MATILDA_PROTOCOL_VERSION_V1));
     }
-//    lastAboutObj = hashAboutObj;
+    //    lastAboutObj = hashAboutObj;
 
     if(lastObjSett.verboseMode)
         qDebug() << "hashAboutObj " << hashAboutObj << h;
@@ -91,6 +96,7 @@ bool M2MConnHolderDecoder::isMySocketID(const QString &objSocketId)
 
 void M2MConnHolderDecoder::decodeReadDataJSON(QByteArray dataArr)
 {
+    restartZombieTmr();
 
     if(lastObjSett.verboseMode)
         qDebug()  << "decodeReadDataJSON a0 " <<  connId.otherId << dataArr;
@@ -183,11 +189,26 @@ FunctionRezultJSON M2MConnHolderDecoder::onCOMMAND_YOUR_ID_AND_MAC(const QVarian
     if(hash.value("cmprssn").toString().contains("zlib"))
         lastObjSett.allowCompress = true;
 
-      connId.otherId = getRemoteIpAndDescr();
+    connId.otherId = getRemoteIpAndDescr();
 
+    if(connId.peerAddress.isEmpty()){
+        emit addError2Log(QString("empty peerAddress"));
+        if(lastObjSett.verboseMode)
+            qDebug() << "onCOMMAND_YOUR_ID_AND_MAC " << connId.peerAddress << connId.socketDescriptor << connId.nameStr;
+    }
+
+    emit removeThisIpFromTemporaryBlockList(connId.peerAddress);
 
     emit addMyId2Hash(myStateParams.mIden, myStateParams.mMac, connId.otherId, getObjIfo(hash.value("ao").toMap(), true), hash.contains("ao"));
-//    emit writeThisDataJSON(errCodeLastOperationJson(command, ERR_NO_ERROR), COMMAND_ERROR_CODE);//реєстрацію завершено упішно
+    //    emit writeThisDataJSON(errCodeLastOperationJson(command, ERR_NO_ERROR), COMMAND_ERROR_CODE);//реєстрацію завершено упішно
+    const int protocol = hash.value("ao").toHash().value("vrsn", MATILDA_PROTOCOL_VERSION_V1).toInt();
+    if(protocol > 0)
+        useThisProtocolVersion = protocol;
+
+    myStateParams.ucDeviceType = hash.value("ao").toHash().value("DEV", 0).toUInt();
+    //1 - UC - supports backups if protocol > 1
+    //4 - M2M service
+
 
     return onCommandErrorLastOperationNoErrorJSON();
 
@@ -197,21 +218,22 @@ FunctionRezultJSON M2MConnHolderDecoder::onCOMMAND_YOUR_ID_AND_MAC(const QVarian
 
 FunctionRezultJSON M2MConnHolderDecoder::onCOMMAND_I_AM_A_ZOMBIE(const QVariantHash &hash)
 {
-//    if(myStateParams.connectedDevType == REM_DEV_MATILDA_DEV || myStateParams.connectedDevType == REM_DEV_MATILDA_CONF){
-        if(lastObjSett.verboseMode)
-            qDebug() << "zombie killer" << connId.peerAddress << myStateParams.mIden << timeZombie.elapsed() / 1000;
-        if(hash.contains("ao"))//періодично мені відправляються дані по пристрою
-            emit setInfoAboutObj(myStateParams.mMac, getObjIfo(hash.value("ao").toMap(), false), myStateParams.mMac.size());
+    //    if(myStateParams.connectedDevType == REM_DEV_MATILDA_DEV || myStateParams.connectedDevType == REM_DEV_MATILDA_CONF){
+    if(lastObjSett.verboseMode)
+        qDebug() << "zombie killer" << connId.peerAddress << myStateParams.mIden << myZombieKiller.timeZombie.elapsed() / 1000;
+    if(hash.contains("ao"))//періодично мені відправляються дані по пристрою
+        emit setInfoAboutObj(myStateParams.mMac, getObjIfo(hash.value("ao").toMap(), false), myStateParams.mMac.size());
 
 
-    if(timeZombie.elapsed() > 5000){
+    if(myZombieKiller.timeZombie.elapsed() > 5000){
+        myZombieKiller.timeZombie.restart();
         QJsonObject j;
         j.insert("msec", QDateTime::currentMSecsSinceEpoch());
         return FunctionRezultJSON(j, COMMAND_I_AM_A_ZOMBIE);
     }
 
     return onCommandAnswerNothingJSON();
-//        emit writeThisDataJSON(QJsonObject(), COMMAND_I_AM_A_ZOMBIE);
+    //        emit writeThisDataJSON(QJsonObject(), COMMAND_I_AM_A_ZOMBIE);
 }
 
 //---------------------------------------------------------------------------------------
@@ -220,10 +242,10 @@ FunctionRezultJSON M2MConnHolderDecoder::onCOMMAND_CONNECT_ME_2_THIS_ID_OR_MAC(c
 {
 
     //from UCon
-//    if(myStateParams.connectedDevType == REM_DEV_MATILDA_DEV){
-//        emit writeThisDataJSON(errCodeLastOperationJson(command, ERR_INCORRECT_REQUEST), COMMAND_ERROR_CODE);
-//        return;
-//    }
+    //    if(myStateParams.connectedDevType == REM_DEV_MATILDA_DEV){
+    //        emit writeThisDataJSON(errCodeLastOperationJson(command, ERR_INCORRECT_REQUEST), COMMAND_ERROR_CODE);
+    //        return;
+    //    }
     myStateParams.connectedDevType = REM_DEV_MATILDA_CONF;
     connId.otherId = getRemoteIpAndDescr();
 
@@ -237,9 +259,11 @@ FunctionRezultJSON M2MConnHolderDecoder::onCOMMAND_CONNECT_ME_2_THIS_ID_OR_MAC(c
     if(str.isEmpty()){
         doAfter = true;
         return onCommandErrorLastOperationExtJSON(QString("'remote' is empty"), ERR_INCORRECT_REQUEST);
-//        emit writeThisDataJSON(errCodeLastOperationJson(command, ERR_INCORRECT_REQUEST), COMMAND_ERROR_CODE);
+        //        emit writeThisDataJSON(errCodeLastOperationJson(command, ERR_INCORRECT_REQUEST), COMMAND_ERROR_CODE);
     }
     //    void connMe2ThisIdOrMac(QString macOrId, bool isMac, QString myRemoteId, QString rIp);//mac or id, isMacMode, socket id
+
+    emit removeThisIpFromTemporaryBlockList(connId.peerAddress);
 
     emit connMe2ThisIdOrMac(str, !isIDMode, connId.otherId, connId.peerAddress);
     return onCommandAnswerNothingJSON();
@@ -254,12 +278,12 @@ FunctionRezultJSON M2MConnHolderDecoder::onCOMMAND_CHECK_BACKUP_FILE_HASH_SUMM(c
     if(lastObjSett.verboseMode)
         qDebug() << "COMMAND_CHECK_BACKUP_FILE_HASH_SUMM " << myStateParams.connectedDevType << hash;
 
-//    if(myStateParams.connectedDevType != REM_DEV_MATILDA_DEV){
-//        emit writeThisDataJSON(errCodeLastOperationJson(command, ERR_INCORRECT_REQUEST), COMMAND_ERROR_CODE);
-//        myStateParams.connectedDevType = REM_DEV_MATILDA_UNKNWN;
-//        QTimer::singleShot(5555, this, SLOT(onDisconn()) );
-//        break;
-//    }
+    //    if(myStateParams.connectedDevType != REM_DEV_MATILDA_DEV){
+    //        emit writeThisDataJSON(errCodeLastOperationJson(command, ERR_INCORRECT_REQUEST), COMMAND_ERROR_CODE);
+    //        myStateParams.connectedDevType = REM_DEV_MATILDA_UNKNWN;
+    //        QTimer::singleShot(5555, this, SLOT(onDisconn()) );
+    //        break;
+    //    }
 
 
     if(hash.value("hshChngd", true).toBool()){
@@ -302,15 +326,15 @@ quint16 M2MConnHolderDecoder::startUploadBackup(const QString &lastSha1base64)
     myStateParams.lastBackupServerPort = 0;
 
     if(myStateParams.serverDataIP.isEmpty()){
-//        myStateParams.serverIP = "kts-m2m.ddns.net";
-//        myStateParams.serverPort = 65000;
+        //        myStateParams.serverIP = "kts-m2m.ddns.net";
+        //        myStateParams.serverPort = 65000;
         return 0;//nothing will work
     }
 
 
     if(myStateParams.serverDataStart > 65534 || myStateParams.serverDataEnd > 65534 || myStateParams.serverDataStart < 1000 || myStateParams.serverDataEnd < 1000){
-//        myStateParams.serverDataStart = SettLoader4svaha::defSETT_SVAHA_DATA_START_PORT();
-//        myStateParams.serverDataEnd = myStateParams.serverDataStart + SettLoader4svaha::defSETT_SVAHA_DATA_PORT_COUNT();
+        //        myStateParams.serverDataStart = SettLoader4svaha::defSETT_SVAHA_DATA_START_PORT();
+        //        myStateParams.serverDataEnd = myStateParams.serverDataStart + SettLoader4svaha::defSETT_SVAHA_DATA_PORT_COUNT();
         return 0;
     }
     myStateParams.lastSha1base64 = lastSha1base64;
@@ -331,15 +355,15 @@ QByteArray M2MConnHolderDecoder::getBackupSign(const quint16 &serverPort)
 
 
     const QByteArray getSign = getBackupServiceAccessKey(serverPort, myStateParams.serverDataIP, myStateParams.lastSha1base64);
-//    QCryptographicHash::hash(QString("%1\n\t%2\n\t%3\n\tAnnet\n\t")
-//                                                        .arg(QString::number(serverPort))
-//                                                        .arg(myStateParams.serverIP).arg(myStateParams.lastSha1base64).toLocal8Bit(),
-//                                                    #if QT_VERSION >= 0x050902
-//                                                                QCryptographicHash::Keccak_256
-//                                                    #else
-//                                                                QCryptographicHash::Sha3_256
-//                                                    #endif
-//                                                            ).toBase64(QByteArray::OmitTrailingEquals);
+    //    QCryptographicHash::hash(QString("%1\n\t%2\n\t%3\n\tAnnet\n\t")
+    //                                                        .arg(QString::number(serverPort))
+    //                                                        .arg(myStateParams.serverIP).arg(myStateParams.lastSha1base64).toLocal8Bit(),
+    //                                                    #if QT_VERSION >= 0x050902
+    //                                                                QCryptographicHash::Keccak_256
+    //                                                    #else
+    //                                                                QCryptographicHash::Sha3_256
+    //                                                    #endif
+    //                                                            ).toBase64(QByteArray::OmitTrailingEquals);
 
     return getSign;
 }
@@ -350,6 +374,26 @@ void M2MConnHolderDecoder::onDoAfter(const quint16 &command)
 {
     ask2closeTheConnection(QString("bad command %1, ip %2, id %3")
                            .arg(command).arg(connId.peerAddress).arg(connId.socketDescriptor));
+}
+
+void M2MConnHolderDecoder::createZombieTmr(const int &zombieMsec)
+{
+    myZombieKiller.timeZombie.start();
+
+    setZombieMsec(zombieMsec);
+
+    QTimer *zombieTmr = new QTimer(this);
+    zombieTmr->setSingleShot(true);
+    zombieTmr->setInterval( myZombieKiller.zombieMsec);// 15 * 60 * 1000 );
+
+    connect(zombieTmr, &QTimer::timeout, this, &M2MConnHolderDecoder::checkSendZombieCommand);
+    connect(this, &M2MConnHolderDecoder::disconnLater, zombieTmr, &QTimer::stop);
+    connect(this, SIGNAL(startTmrZombieKiller(int)), zombieTmr, SLOT(start(int)));
+
+
+    restartZombieTmr();
+
+
 }
 
 //---------------------------------------------------------------------------------------
@@ -364,6 +408,9 @@ void M2MConnHolderDecoder::startConnMatildaDev(quint16 serverPort, QString objId
             jObj.insert("rIp", rIp);
             emit writeThisDataJSON(jObj, COMMAND_CONNECT_2_THIS_SERVICE);
 
+            //is the socket alive, fast check must be done
+
+            fastZombieCheckSmart();
         }
     }
 }
@@ -378,6 +425,8 @@ void M2MConnHolderDecoder::startConn4UCon(quint16 serverPort, QString objSocketI
             jObj.insert("sIp", myStateParams.serverDataIP);// serverIp);
             jObj.insert("sP", serverPort);
             emit writeThisDataJSON(jObj, COMMAND_CONNECT_ME_2_THIS_ID_OR_MAC);
+
+            ask2closeTheConnectionExt(QString("startConn4UCon"), 1234);
         }
     }
 }
@@ -398,8 +447,8 @@ void M2MConnHolderDecoder::onFailed2connect2oneDev(QStringList macIdList, QStrin
             jObj.insert(QString("l"), QJsonArray::fromStringList(macIdList));
             emit writeThisDataJSON(jObj, COMMAND_CONNECT_ME_2_THIS_ID_OR_MAC);
         }
-//        jObj.insert("sIp", "");
-//        jObj.insert("sp", "");
+        //        jObj.insert("sIp", "");
+        //        jObj.insert("sp", "");
 
     }
 }
@@ -411,7 +460,7 @@ void M2MConnHolderDecoder::onResourBusy(QString socketId)
     if(isMySocketID(socketId)){
         sendFunctionRezJSON(onCommandErrorLastOperationJSON(ERR_RESOURCE_BUSY));
 
-//       emit writeThisDataJSON( errCodeLastOperationJson()// errCodeLastOperationJson(lastCommand, ERR_RESOURCE_BUSY), COMMAND_ERROR_CODE);//
+        //       emit writeThisDataJSON( errCodeLastOperationJson()// errCodeLastOperationJson(lastCommand, ERR_RESOURCE_BUSY), COMMAND_ERROR_CODE);//
     }
 }
 
@@ -441,16 +490,26 @@ void M2MConnHolderDecoder::checkBackup4thisMac(QString mac, QString lastSha1base
 
 
         const QDateTime dt = QDateTime::currentDateTimeUtc();
-        if(!myStateParams.dtLastBackupCheck.isValid()){
-            //it is here for the first time
-            myStateParams.dtLastBackupCheck = dt;
-            QTimer *t = new QTimer(this);
-            t->setSingleShot(true);
-            t->setInterval(111);
 
-            connect(this, SIGNAL(startTmrCheckRemoteSha1()), t, SLOT(start()) );
-            connect(this, SIGNAL(closeTheConnection()), t, SLOT(stop()) );
-            connect(t, SIGNAL(timeout()), this, SLOT(checkRemoteSha1()) );
+
+        if(!myStateParams.dtLastBackupCheck.isValid()){
+
+            if(myStateParams.ucDeviceType == DEV_POLL && useThisProtocolVersion > MATILDA_PROTOCOL_VERSION_V1){
+
+                //it is here for the first time
+                myStateParams.dtLastBackupCheck = dt;
+                QTimer *t = new QTimer(this);
+                t->setSingleShot(true);
+                t->setInterval(111);
+
+                connect(this, SIGNAL(startTmrCheckRemoteSha1()), t, SLOT(start()) );
+                connect(this, SIGNAL(closeTheConnection()), t, SLOT(stop()) );
+                connect(t, SIGNAL(timeout()), this, SLOT(checkRemoteSha1()) );
+
+            }else{
+                myStateParams.macL4backupManager.append(mac);
+                //backup feature doesn't work
+            }
 
         }else{
             if(myStateParams.dtLastBackupCheck > dt){
@@ -514,6 +573,7 @@ void M2MConnHolderDecoder::onSyncServiceDestr(quint8 backupSessionId)
 void M2MConnHolderDecoder::restartTimeObject()
 {
     timeObjectSmpl.restart();
+
 }
 
 
@@ -547,20 +607,20 @@ void M2MConnHolderDecoder::checkRemoteSha1()
 
 void M2MConnHolderDecoder::onDataConnectionParamsChanged(QString serverDataIP, quint16 serverDataStart, quint16 serverDataEnd)
 {
-//    QString serverServiceIP;
-//    quint16 serverServicePort;//65000
+    //    QString serverServiceIP;
+    //    quint16 serverServicePort;//65000
 
-//    //service - data exchange
-//    QString serverDataIP;
-//    quint16 serverPort;
-//    quint16 serverDataStart;
-//    quint16 serverDataEnd;
-//    myStateParams.serverServiceIP = serverAddr;
-//    myStateParams.serverServicePort = serverServicePort;
+    //    //service - data exchange
+    //    QString serverDataIP;
+    //    quint16 serverPort;
+    //    quint16 serverDataStart;
+    //    quint16 serverDataEnd;
+    //    myStateParams.serverServiceIP = serverAddr;
+    //    myStateParams.serverServicePort = serverServicePort;
 
     myStateParams.serverDataIP = serverDataIP;
 
-//    myStateParams.serverPort = serverPort;
+    //    myStateParams.serverPort = serverPort;
     myStateParams.serverDataStart = serverDataStart;
     myStateParams.serverDataEnd = serverDataEnd;
 }
@@ -577,6 +637,75 @@ void M2MConnHolderDecoder::onBackupWorkDirectoryChanged(QString workDir)
 void M2MConnHolderDecoder::onEverythingIsConnected()
 {
     QTimer::singleShot(1, this, SIGNAL(onForceReading()));
+}
+
+void M2MConnHolderDecoder::setZombieMsec(int msec)
+{
+    myZombieKiller.zombieMsec = quint32(msec);
+
+
+    if(myZombieKiller.zombieMsec < 20000)
+        myZombieKiller.zombieMsec = 20000;
+    else if(myZombieKiller.zombieMsec > 600000) //maximum
+        myZombieKiller.zombieMsec = 600000;
+
+}
+
+//---------------------------------------------------------------------------------------
+
+void M2MConnHolderDecoder::checkSendZombieCommand()
+{
+
+    if(myZombieKiller.isWaiting4answer){
+        ask2closeTheConnectionExt("checkSendZombieCommand no answer ", 11);
+    }else{
+
+        myZombieKiller.isWaiting4answer = true;
+
+        if(useThisProtocolVersion >= MATILDA_PROTOCOL_VERSION_V11){
+            myZombieKiller.timeZombie.restart();
+            QJsonObject j;
+            j.insert("msec", QDateTime::currentMSecsSinceEpoch());
+            j.insert("fast", true);
+            //        return FunctionRezultJSON(j, COMMAND_I_AM_A_ZOMBIE);
+
+            emit writeThisDataJSON(j, COMMAND_I_AM_A_ZOMBIE);
+
+            emit startTmrZombieKiller(10000);
+            return;//older don't support this feature
+
+        }
+        emit startTmrZombieKiller(myZombieKiller.zombieMsec);
+
+    }
+
+}
+
+void M2MConnHolderDecoder::restartZombieTmr()
+{
+    //something is received
+
+    restartZombieTmrExt(false);
+
+}
+
+void M2MConnHolderDecoder::restartZombieTmrExt(const bool &fastMode)
+{
+    myZombieKiller.isWaiting4answer = false;
+
+    emit startTmrZombieKiller(fastMode ? 5000 : myZombieKiller.zombieMsec);
+}
+
+//---------------------------------------------------------------------------------------
+
+void M2MConnHolderDecoder::fastZombieCheckSmart()
+{
+    if(myZombieKiller.isWaiting4answer)
+        return;//the answer is waited
+    //create a request and wait
+    restartZombieTmrExt(true);
+
+
 }
 
 //---------------------------------------------------------------------------------------

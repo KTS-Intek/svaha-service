@@ -26,7 +26,7 @@ class M2MConnHolderDecoder : public DecodeMatildaProtocolBase
 {
     Q_OBJECT
 public:
-    explicit M2MConnHolderDecoder(const bool &verboseMode, QObject *parent = nullptr);
+    explicit M2MConnHolderDecoder(const QHostAddress &peerAddress, const qintptr &socketDescriptor, const bool &verboseMode, QObject *parent = nullptr);
 
     struct ConnHolderStateParams
     {
@@ -60,16 +60,27 @@ public:
         QStringList macL4backupManager;//a list of MAC that have backups
         QString workDir;
 
+        quint8 ucDeviceType;   //types like UC, EMUL0, EMUL1
+
 
         ConnHolderStateParams() : connectedDevType(REM_DEV_MATILDA_UNKNWN),
             serverDataStart(0), serverDataEnd(0),
-            backupSessionId(0), lastBackupServerPort(0)  {}
+            backupSessionId(0), lastBackupServerPort(0) , ucDeviceType(DEV_UNKNWN) {}
     } myStateParams;
 
 //    bool useJsonMode; use lastObjSett
 
     QTime timeObjectSmpl;
-    QTime timeZombie;
+
+    struct M2MZombieState
+    {
+        QTime timeZombie;
+        bool isWaiting4answer; //this side is the last initiator or not
+        quint32 zombieMsec;
+
+        M2MZombieState() : isWaiting4answer(false),
+            zombieMsec(300000) {}
+    } myZombieKiller;
 //    IneedMoreTimeObject *timeObject; matilda-bbb-serverside-shared
 
 
@@ -114,6 +125,9 @@ public:
 
     void onDoAfter(const quint16 &command);
 
+
+    void createZombieTmr(const int &zombieMsec);
+
 signals:
     //to the socket
 
@@ -139,6 +153,9 @@ signals:
 
     void removeMyId2Hash(QStringList idMacList);//id mac
 
+    void removeThisIpFromTemporaryBlockList(QString ip);
+
+
 //    void connMe2ThisIdOrMac(QString macOrId, bool isMacMode, QString socket, QString);//mac or id, isMacMode, socket id
     void connMe2ThisIdOrMac(QString macOrId, bool isMac, QString myRemoteId, QString rIp);//mac or id, isMacMode, socket id
 
@@ -149,6 +166,8 @@ signals:
 
     void onForceReading();
 
+
+    void startTmrZombieKiller(int msec);
 
 public slots:
     //from the connection holder server
@@ -199,7 +218,16 @@ public slots:
     void onEverythingIsConnected();
 
 
+    //zombie checker
+    void setZombieMsec(int msec);
 
+    void checkSendZombieCommand();
+
+    void restartZombieTmr();
+
+    void restartZombieTmrExt(const bool &fastMode);
+
+    void fastZombieCheckSmart();
 
 };
 

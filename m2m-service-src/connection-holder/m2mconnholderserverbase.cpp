@@ -51,8 +51,11 @@ bool M2MConnHolderServerBase::startService()
     if(myParams.port == 0)
         return true;
 
-    if(listen(QHostAddress::Any, myParams.port))
+    if(listen(QHostAddress::Any, myParams.port)){
+        emit addEvent2log(QString("Connection holder is listenning on %1").arg(myParams.port));
         return true;
+    }
+
     emit onFailed2startServer(QString("Failed to start connection holder server. %1").arg(errorString()));
     if(myParams.verboseMode)
         qDebug() << "startService 10 " << myParams.port << errorString();
@@ -70,16 +73,29 @@ QStringList M2MConnHolderServerBase::getDevicesWithThisID(const QString &id)
 
 
 
-    auto macl = myTable.hashMacDevId.values(id);
+    auto macl = myTable.hashMacDevId.keys(id);
 
     if(macl.isEmpty())
         return out;
 
     std::sort(macl.begin(), macl.end());
+    //one device can have more than one MAC, so it is necessary to check socket IDs
+
+//    myTable.hashMacDevId.insert(mac, objId);
+//    myTable.hashMacRemoteId.insert(mac, remIpDescr);
+//    myTable.hashMacAddTime.insert(mac, dt);
+//    myTable.hashMac2objectIfo.insert(mac, hashObjIfo);
+
+    QStringList usedRemIpDescr;
     for(int i = 0, imax = macl.size(); i < imax; i++){
         const QString macUpper = macl.at(i);
         if(macUpper.isEmpty())
             continue;
+        const QString remIpDescr = myTable.hashMacRemoteId.value(macUpper);
+        if(usedRemIpDescr.contains(remIpDescr))
+            continue;//it has such socket, ignore
+
+        usedRemIpDescr.append(remIpDescr);
         out.append(MatildaProtocolHelperV2::getM2MMacIDLine(macUpper, id));
     }
     return out;
@@ -120,7 +136,7 @@ void M2MConnHolderServerBase::setTimeouts(int zombieMsec, int msecAlive, int tim
 
     myParams.socketTimeouts.timeOutGMsec = timeOutGMsec;
     myParams.socketTimeouts.timeOutBMsec = timeOutBMsec;
-    onTimeoutsChanged(myParams.socketTimeouts);
+    emit onTimeoutsChanged(myParams.socketTimeouts);
 
 }
 

@@ -49,6 +49,8 @@ signals:
     void onThisDecoderReady(M2MConnHolderDecoder *decoder);
 
 
+    void setZombieMsec(int msec);
+
 
 public slots:
     void onThreadStartedVerb();
@@ -60,7 +62,6 @@ public slots:
 
     void onTimeoutsChanged(ConnectionTimeouts socketTimeouts);
 
-    void setTimeouts(const int &timeoutGMsec, const int &timeoutBMsec);
 
 
     void onDisconn();

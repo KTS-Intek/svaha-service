@@ -66,8 +66,10 @@ void M2MConnHolderServer::setServicePortSmart(quint16 port)
         emit addEvent2log(QString("New port is %1. Restarting...").arg(int(port)));
         close();
         myParams.port = port;
+
     }
-    QTimer::singleShot(999, this, SLOT(try2startServer()));
+    if(!isListening())
+        QTimer::singleShot(999, this, SLOT(try2startServer()));
 
 }
 
@@ -100,9 +102,9 @@ void M2MConnHolderServer::connMe2ThisIdOrMac(QString macOrId, bool isMac, QStrin
 
 
     QThread *thread = new QThread(this);
-    thread->setObjectName(myRemoteId);
+    thread->setObjectName(QString("%1\n%2").arg(macOrId).arg(myRemoteId));
     server->moveToThread(thread);
-    connect(thread, SIGNAL(started()), server, SLOT(onThrdStarted()) );
+    connect(thread, SIGNAL(started()), server, SLOT(onThreadStarted()) );
     connect(server, SIGNAL(destroyed(QObject*)), thread, SLOT(quit()));
     connect(thread, SIGNAL(finished()), thread, SLOT(deleteLater()) );
 
@@ -139,6 +141,8 @@ void M2MConnHolderServer::onThisDecoderReady(M2MConnHolderDecoder *decoder)
         connect(decoder, &M2MConnHolderDecoder::connMe2ThisIdOrMac  , this, &M2MConnHolderServer::connMe2ThisIdOrMac);
         connect(this, &M2MConnHolderServer::killClientNow               , decoder, &M2MConnHolderDecoder::killClientNow);
 
+        connect(decoder, &M2MConnHolderDecoder::removeThisIpFromTemporaryBlockList, accesManager, &IPAccessManager::removeThisIpFromTemporaryBlockList);
+
         onThisDecoderReadyBase(decoder);
     }
 }
@@ -173,11 +177,13 @@ void M2MConnHolderServer::incomingConnection(qintptr handle)
     accesManager->addThisIPToTempraryBlockListQuiet(strIP);
 
     QThread *thread = new QThread(this);
+    thread->setObjectName(QString("%1/%2").arg(strIP).arg(QString::number(socketDescriptor())));
     socket->moveToThread(thread);
 //    socket->createDecoder(myParams.verboseMode);//is it right???
 
     connect(socket, SIGNAL(destroyed(QObject*)), thread, SLOT(quit()) );
     connect(thread, SIGNAL(finished()), thread, SLOT(deleteLater()) );
+
 
     if(myParams.verboseMode)
         connect(thread, SIGNAL(started()), socket, SLOT(onThreadStartedVerb()) );
