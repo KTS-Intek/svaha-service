@@ -15,6 +15,8 @@ M2MConnHolderDecoder::M2MConnHolderDecoder(const QHostAddress &peerAddress, cons
 
 }
 
+
+
 bool M2MConnHolderDecoder::isCommandAllowed4thisConnectedDev(const quint16 &command, const qint8 &connectedDevType)
 {
     bool r = false;
@@ -90,6 +92,12 @@ bool M2MConnHolderDecoder::areServerIpPortValidAndMySocketID(const QString &serv
 bool M2MConnHolderDecoder::isMySocketID(const QString &objSocketId)
 {
     return (!objSocketId.isEmpty() && objSocketId == connId.otherId);
+}
+
+bool M2MConnHolderDecoder::isMySocketIDinTheList(const QStringList &objSocketIds)
+{
+    return objSocketIds.contains(connId.otherId);
+
 }
 
 //---------------------------------------------------------------------------------------
@@ -477,10 +485,18 @@ void M2MConnHolderDecoder::checkThisMac(QString mac)
 
 }
 
-void M2MConnHolderDecoder::killClientNow(QString id, bool byDevId)
+//void M2MConnHolderDecoder::killClientNow(QString id, bool byDevId)
+//{
+//    if((byDevId && id == myStateParams.mIden) || (!byDevId && isMySocketID(id)))
+//        ask2closeTheConnection(QString("External command"));
+//}
+
+void M2MConnHolderDecoder::killClientsNow(QStringList ids, bool byDevId)
 {
-    if((byDevId && id == myStateParams.mIden) || (!byDevId && isMySocketID(id)))
+    if((byDevId && ids.contains(myStateParams.mIden)) || (!byDevId && isMySocketIDinTheList(ids))){
         ask2closeTheConnection(QString("External command"));
+    }
+
 }
 
 void M2MConnHolderDecoder::checkBackup4thisMac(QString mac, QString lastSha1base64)
@@ -705,6 +721,14 @@ void M2MConnHolderDecoder::fastZombieCheckSmart()
     //create a request and wait
     restartZombieTmrExt(true);
 
+
+}
+
+void M2MConnHolderDecoder::onConnectionIsDown()
+{
+    if(!myStateParams.mMac.isEmpty())
+        emit removeMyId2Hash(myStateParams.mMac);
+    myStateParams.mMac.clear();
 
 }
 

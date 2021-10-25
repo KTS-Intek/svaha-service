@@ -49,7 +49,8 @@ signals:
     void blockThisIP(QString ip);
 
 //from M2MLocalSocket
-    void killClientNow(QString id, bool byDevId);
+//    void killClientNow(QString id, bool byDevId);
+    void killClientsNow(QStringList ids, bool byDevId); //v11
 
 
 

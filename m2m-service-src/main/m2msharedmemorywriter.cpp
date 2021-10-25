@@ -5,6 +5,8 @@
 
 
 
+#include <QDebug>
+
 //-------------------------------------------------------------------------------------
 
 M2MSharedMemoryWriter::M2MSharedMemoryWriter(const QString &sharedMemoName, const QString &semaName, const bool &verboseMode, QObject *parent)
@@ -48,8 +50,12 @@ QVariantHash M2MSharedMemoryWriter::fromConnectionTable(QStringHash hashMacRemot
 
 void M2MSharedMemoryWriter::onThreadStarted()
 {
-    mymaximums.write2ram = 60;
+    if(verboseMode)
+        qDebug() << "M2MSharedMemoryWriter::onThreadStarted ";
 
+//    mymaximums.write2ram = 60;
+
+    connect(this, &M2MSharedMemoryWriter::ready2flushArr, this, &M2MSharedMemoryWriter::sendConnectionTable);
 
     setMirrorMode(true);
     initObjectLtr();
@@ -62,12 +68,18 @@ void M2MSharedMemoryWriter::onThreadStarted()
 void M2MSharedMemoryWriter::onConnectionTableChanged()
 {
     changeSharedMemArrDataCounter();
+
+    if(verboseMode)
+        qDebug() << "M2MSharedMemoryWriter::onConnectionTableChanged " << counter << counter2file;
 }
 
 //-------------------------------------------------------------------------------------
 
 void M2MSharedMemoryWriter::onConnectionTableData(QStringHash hashMacRemoteId, QStringHash hashMacDevId, QStringHash hashTime, QStringHashHash hashAboutObject)
 {
+    if(verboseMode)
+        qDebug() << "M2MSharedMemoryWriter::onConnectionTableData ";
+
     QVariantHash h;
     h.insert("crbr", fromConnectionTable(hashMacRemoteId, hashMacDevId, hashTime, hashAboutObject));
 

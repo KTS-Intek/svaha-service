@@ -28,6 +28,7 @@ class M2MConnHolderDecoder : public DecodeMatildaProtocolBase
 public:
     explicit M2MConnHolderDecoder(const QHostAddress &peerAddress, const qintptr &socketDescriptor, const bool &verboseMode, QObject *parent = nullptr);
 
+
     struct ConnHolderStateParams
     {
         qint8 connectedDevType;// isMatildaDev; //-1 unknown, 0 - Matilda-conf, 1 - matilda-dev
@@ -100,6 +101,8 @@ public:
 
     bool isMySocketID(const QString &objSocketId);
 
+    bool isMySocketIDinTheList(const QStringList &objSocketIds);
+
 
 
     void decodeReadDataJSON(QByteArray dataArr);
@@ -151,7 +154,7 @@ signals:
 //to M2M service
     void addMyId2Hash(QString objId, QStringList macl, QString remIpDescr, QStringHash hashObjIfo, bool add2sync);//id mac <remote ip>:<descr>
 
-    void removeMyId2Hash(QStringList idMacList);//id mac
+    void removeMyId2Hash(QStringList idMacList);//id is mac
 
     void removeThisIpFromTemporaryBlockList(QString ip);
 
@@ -182,7 +185,8 @@ public slots:
 
     void checkThisMac(QString mac);
 
-    void killClientNow(QString id, bool byDevId);
+//    void killClientNow(QString id, bool byDevId);
+    void killClientsNow(QStringList ids, bool byDevId); //v11
 
 
     //BackUpManager
@@ -228,6 +232,10 @@ public slots:
     void restartZombieTmrExt(const bool &fastMode);
 
     void fastZombieCheckSmart();
+
+    //connection is down
+    void onConnectionIsDown();
+
 
 };
 

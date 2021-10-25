@@ -137,8 +137,10 @@ void M2MConnHolderSocket::createDecoder(const bool &verboseMode)
         QTimer::singleShot(msec, this, SLOT(onDisconnByDecoder()));
     });
 
-    connect(this, &M2MConnHolderSocket::setZombieMsec, decoder, &M2MConnHolderDecoder::setZombieMsec)
-;
+    connect(this, &M2MConnHolderSocket::setZombieMsec, decoder, &M2MConnHolderDecoder::setZombieMsec);
+
+    connect(this, &M2MConnHolderSocket::disconnected, decoder, &M2MConnHolderDecoder::onConnectionIsDown);
+
     decoder->createZombieTmr(socketTimeouts.zombieMsec);
 
 

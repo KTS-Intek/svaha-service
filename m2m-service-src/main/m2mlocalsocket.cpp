@@ -34,12 +34,33 @@ void M2MLocalSocket::decodeReadData(const QVariant &dataVar, const quint16 &comm
 void M2MLocalSocket::onMTD_EXT_CUSTOM_COMMAND_3(const QVariant &var)
 {
     const QVariantHash h = var.toHash();
+
+    //old, before v11
     //socket id
-    if(!h.value("sid").toString().isEmpty()){
-        emit killClientNow(h.value("sid").toString(), false);
+    if(!h.value("sid").toString().isEmpty() ){
+        QStringList l;
+        l.append(h.value("sid").toString());
+        emit killClientsNow(l, false);
         return;
     }
     //device id
-    if(!h.value("id").toString().isEmpty())
-        emit killClientNow(h.value("id").toString(), true);
+    if(!h.value("id").toString().isEmpty()){
+        QStringList l;
+        l.append(h.value("id").toString());
+        emit killClientsNow(l, true);
+        return;
+    }
+
+    //socket id
+    if(!h.value("sidl").toStringList().isEmpty() ){
+
+        emit killClientsNow(h.value("sidl").toStringList(), false);
+        return;
+    }
+    //device id
+    if(!h.value("idl").toStringList().isEmpty()){
+
+        emit killClientsNow(h.value("idl").toStringList(), true);
+        return;
+    }
 }

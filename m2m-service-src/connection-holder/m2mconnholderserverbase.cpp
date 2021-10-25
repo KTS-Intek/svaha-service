@@ -39,6 +39,8 @@ void M2MConnHolderServerBase::makeCustomTypeRegistration()
     qRegisterMetaType<QStringHash>("QStringHash");
     qRegisterMetaType<QStringHashHash>("QStringHashHash");
     qRegisterMetaType<QList<QDateTime> >("QList<QDateTime>");
+    qRegisterMetaType<ConnectionTimeouts>("ConnectionTimeouts");
+
 
 }
 

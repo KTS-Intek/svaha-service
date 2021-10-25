@@ -31,6 +31,9 @@ void M2MResourceManager::reloadSettings()
 
     sLoader.checkDefSett(myParams.verboseMode);
 
+
+    emit addEvent2log(QString("Reloading settings"));
+
     if(true){
 
         const quint16 minDataPort = sLoader.loadOneSett(SETT_SVAHA_DATA_START_PORT).toUInt();
@@ -97,7 +100,16 @@ void M2MResourceManager::sendGlobalSettings(const int &zombieMsec, const int &ms
 {
 
     SettLoader4matilda sLoader;
+    if(myParams.verboseMode){
+        qDebug() << "sendGlobalSettings "
+                 << sLoader.loadOneSett(SETT_ALLOW_IP_LIST).toStringList()
+                 << sLoader.loadOneSett(SETT_BLOCK_IP_LIST).toStringList();
+    }
+
     emit setAllowAndBlockList(sLoader.loadOneSett(SETT_ALLOW_IP_LIST).toStringList(), sLoader.loadOneSett(SETT_BLOCK_IP_LIST).toStringList());
+
+
+
     emit setTimeouts(zombieMsec, msecAlive, sLoader.loadOneSett(SETT_TCP_READ_TO).toInt(), sLoader.loadOneSett(SETT_TCP_READ_TOB).toInt());
 
 //    emit setNewTimeOutNow(sLoader.loadOneSett(SETT_TCP_READ_TO).toInt(), sLoader.loadOneSett(SETT_TCP_READ_TOB).toInt(), sLoader.loadOneSett(SETT_TCP_MNOZNYK).toLongLong());
@@ -121,6 +133,9 @@ void M2MResourceManager::killApp()
 
 void M2MResourceManager::onTmrCreate()
 {
+    if(myParams.verboseMode)
+        connect(this, &M2MResourceManager::addEvent2log, this, &M2MResourceManager::addEvent2logSlot);
+
     M2MLocalSocket *extSocket = createLocalSocket(myParams.verboseMode);
 
     auto *writer = createSharedMemoryWriter(myParams.verboseMode);
@@ -151,7 +166,7 @@ void M2MResourceManager::onFailed2startServer(QString message)
 
 //----------------------------------------------------------------------
 
-void M2MResourceManager::addEvent2log(QString message)
+void M2MResourceManager::addEvent2logSlot(QString message)
 {
     qDebug() << "addEvent2log " << message;
 
@@ -179,7 +194,10 @@ M2MLocalSocket *M2MResourceManager::createLocalSocket(const bool &verboseMode)
 #endif
     connect(extSocketThrd, &QThread::started, extSocket, &M2MLocalSocket::onThreadStarted);
 
-    connect(extSocket, &M2MLocalSocket::onConfigChanged , this, &M2MResourceManager::reloadSettings  );
+    connect(extSocket, &M2MLocalSocket::reloadSett , this, &M2MResourceManager::reloadSettings  );
+
+//    connect(extSocket, &M2MLocalSocket::onConfigChanged , this, &M2MResourceManager::reloadSettings  ); //WTF how it can be???
+
     connect(extSocket, &M2MLocalSocket::killApp         , this, &M2MResourceManager::killApp  );
 
     connect(this, &M2MResourceManager::killAllObjects, extSocket, &M2MLocalSocket::killAllObjects);
@@ -257,16 +275,18 @@ M2MConnHolderServer *M2MResourceManager::createM2MServer(const bool &verboseMode
 
     connect(this, &M2MResourceManager::setServicePortSmart, server, &M2MConnHolderServer::setServicePortSmart);
 
+    connect(this, &M2MResourceManager::setAllowAndBlockList, server, &M2MConnHolderServer::setAllowAndBlockList);
+
      //local socket
 
-        connect(extSocket, &M2MLocalSocket::killClientNow, server, &M2MConnHolderServer::killClientNow);
+    connect(extSocket, &M2MLocalSocket::killClientsNow, server, &M2MConnHolderServer::killClientsNow);
 
 
     connect(this, &M2MResourceManager::killAllObjects, server, &M2MConnHolderServer::stopAllSlot);//, &M2MSharedMemoryWriter::flushAllNowAndDie);
 
     connect(server, &M2MConnHolderServer::onFailed2startServer, this, &M2MResourceManager::onFailed2startServer);
-    if(verboseMode)
-        connect(server, &M2MConnHolderServer::addEvent2log, this, &M2MResourceManager::addEvent2log);
+    connect(server, &M2MConnHolderServer::addEvent2log, this, &M2MResourceManager::addEvent2log);
+
     connect(server, &M2MConnHolderServer::gimmeSettings, this, &M2MResourceManager::reloadSettings);
 
 //    thread->start();

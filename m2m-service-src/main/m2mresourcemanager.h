@@ -29,6 +29,8 @@ signals:
 
     void goGoGo();
 
+    void addEvent2log(QString message);
+
 
 //    //from local socket to m2mserver
 //    void killClientNow(QString id, bool byDevId);
@@ -75,7 +77,7 @@ public slots:
 
     void onFailed2startServer(QString message);
 
-    void addEvent2log(QString message);
+    void addEvent2logSlot(QString message);
 
 
 private:

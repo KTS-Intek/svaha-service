@@ -139,7 +139,7 @@ void M2MConnHolderServer::onThisDecoderReady(M2MConnHolderDecoder *decoder)
 {
     if(decoder){
         connect(decoder, &M2MConnHolderDecoder::connMe2ThisIdOrMac  , this, &M2MConnHolderServer::connMe2ThisIdOrMac);
-        connect(this, &M2MConnHolderServer::killClientNow               , decoder, &M2MConnHolderDecoder::killClientNow);
+        connect(this, &M2MConnHolderServer::killClientsNow               , decoder, &M2MConnHolderDecoder::killClientsNow);
 
         connect(decoder, &M2MConnHolderDecoder::removeThisIpFromTemporaryBlockList, accesManager, &IPAccessManager::removeThisIpFromTemporaryBlockList);
 

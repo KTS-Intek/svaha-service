@@ -17,7 +17,8 @@ public:
     void onMTD_EXT_CUSTOM_COMMAND_3(const QVariant &var);
 
 signals:
-    void killClientNow(QString id, bool byDevId);
+//    void killClientNow(QString id, bool byDevId);
+    void killClientsNow(QStringList ids, bool byDevId); //v11
 
 
     //default signals
