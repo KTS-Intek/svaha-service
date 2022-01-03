@@ -40,6 +40,10 @@ void M2MConnHolderServer::onThreadStarted()
 {
 
     accesManager = new IPAccessManager(this);
+
+    accesManager->mTemporaryParams.allowAttempts++;
+    accesManager->mTemporaryParams.maxBadAttempts++;
+
     connect(accesManager, &IPAccessManager::add2systemLog, this, &M2MConnHolderServer::addEvent2log);
     connect(this, &M2MConnHolderServer::setAllowAndBlockList, accesManager, &IPAccessManager::setAllowAndBlockList);
     connect(this, &M2MConnHolderServer::blockThisIP, accesManager, &IPAccessManager::blockThisIP);
@@ -102,7 +106,7 @@ void M2MConnHolderServer::connMe2ThisIdOrMac(QString macOrId, bool isMac, QStrin
 
 
     QThread *thread = new QThread(this);
-    thread->setObjectName(QString("%1\n%2").arg(macOrId).arg(myRemoteId));
+    thread->setObjectName(QString("%1=%2").arg(macOrId, myRemoteId));
     server->moveToThread(thread);
     connect(thread, SIGNAL(started()), server, SLOT(onThreadStarted()) );
     connect(server, SIGNAL(destroyed(QObject*)), thread, SLOT(quit()));
@@ -143,6 +147,7 @@ void M2MConnHolderServer::onThisDecoderReady(M2MConnHolderDecoder *decoder)
 
         connect(decoder, &M2MConnHolderDecoder::removeThisIpFromTemporaryBlockList, accesManager, &IPAccessManager::removeThisIpFromTemporaryBlockList);
 
+
         onThisDecoderReadyBase(decoder);
     }
 }
@@ -176,8 +181,10 @@ void M2MConnHolderServer::incomingConnection(qintptr handle)
     }
     accesManager->addThisIPToTempraryBlockListQuiet(strIP);
 
+    emit addEvent2log(QString("in.c. %1 %2").arg(strIP, QString::number(handle)));
+
     QThread *thread = new QThread(this);
-    thread->setObjectName(QString("%1/%2").arg(strIP).arg(QString::number(socketDescriptor())));
+    thread->setObjectName(QString("%1/%2").arg(strIP, QString::number(handle)));
     socket->moveToThread(thread);
 //    socket->createDecoder(myParams.verboseMode);//is it right???
 

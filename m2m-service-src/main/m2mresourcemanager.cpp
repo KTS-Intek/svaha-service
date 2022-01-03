@@ -36,11 +36,11 @@ void M2MResourceManager::reloadSettings()
 
     if(true){
 
-        const quint16 minDataPort = sLoader.loadOneSett(SETT_SVAHA_DATA_START_PORT).toUInt();
-        const quint16 maxDataPort = minDataPort + sLoader.loadOneSett(SETT_SVAHA_DATA_PORT_COUNT).toUInt();
+        const quint16 minDataPort = sLoader.loadOneSett(SETT_SVAHA_DATA_START_PORT, myParams.verboseMode).toUInt();
+        const quint16 maxDataPort = minDataPort + sLoader.loadOneSett(SETT_SVAHA_DATA_PORT_COUNT, myParams.verboseMode).toUInt();
 
 
-        QString serverDataIP = sLoader.loadOneSett(SETT_MATILDA_CONF_IP).toString();
+        QString serverDataIP = sLoader.loadOneSett(SETT_MATILDA_CONF_IP, myParams.verboseMode).toString();
         if(serverDataIP.isEmpty())
             serverDataIP = "kts-m2m.ddns.net";
 
@@ -58,30 +58,30 @@ void M2MResourceManager::reloadSettings()
 
 
 
-        const int zombieMsec = sLoader.loadOneSett(SETT_ZOMBIE_MSEC).toInt();// 15 * 60 * 1000 );
-        const int killTmrMsec = sLoader.loadOneSett(SETT_TIME_2_LIVE).toInt();// 24 * 60 * 60 * 1000);
+        const int zombieMsec = sLoader.loadOneSett(SETT_ZOMBIE_MSEC, myParams.verboseMode).toInt();// 15 * 60 * 1000 );
+        const int killTmrMsec = sLoader.loadOneSett(SETT_TIME_2_LIVE, myParams.verboseMode).toInt();// 24 * 60 * 60 * 1000);
 
         sendGlobalSettings(zombieMsec, killTmrMsec);
 
-        const quint16 m2mServiceConnHolderPort = quint16(sLoader.loadOneSett(SETT_SVAHA_SERVICE_PORT).toUInt());
+        const quint16 m2mServiceConnHolderPort = quint16(sLoader.loadOneSett(SETT_SVAHA_SERVICE_PORT, myParams.verboseMode).toUInt());
 
         emit setServicePortSmart(m2mServiceConnHolderPort);
     }
 
 
-    const QString workDir = sLoader.loadOneSett(SETT_SYNC_WORKDIR).toString();
-    const quint8 syncMode = sLoader.loadOneSett(SETT_SYNC_MODE).toUInt();
-    const quint8 maxFileCount = sLoader.loadOneSett(SETT_SYNC_MAX_FILE_COUNT).toUInt();
+    const QString workDir = sLoader.loadOneSett(SETT_SYNC_WORKDIR, myParams.verboseMode).toString();
+    const quint8 syncMode = sLoader.loadOneSett(SETT_SYNC_MODE, myParams.verboseMode).toUInt();
+    const quint8 maxFileCount = sLoader.loadOneSett(SETT_SYNC_MAX_FILE_COUNT, myParams.verboseMode).toUInt();
 
-    const quint32 maxSizeMacTable = sLoader.loadOneSett(SETT_SYNC_MAX_SIZE_MAC_TABLE).toUInt();
+    const quint32 maxSizeMacTable = sLoader.loadOneSett(SETT_SYNC_MAX_SIZE_MAC_TABLE, myParams.verboseMode).toUInt();
 
-    const quint32 maxCountSha1LocalFsParallel = sLoader.loadOneSett(SETT_SYNC_MAX_COUNT_SHA1_CHRSPRLL).toUInt();
+    const quint32 maxCountSha1LocalFsParallel = sLoader.loadOneSett(SETT_SYNC_MAX_COUNT_SHA1_CHRSPRLL, myParams.verboseMode).toUInt();
 
-    const qint32 maxSizeSyncRequest = sLoader.loadOneSett(SETT_SYNC_MAX_SIZE_SYNC_REQUEST).toInt();
-    const qint32 maxCountSyncRequestParallel = sLoader.loadOneSett(SETT_SYNC_MAX_COUNT_SYNQ_RQSTPRLL).toUInt();
+    const qint32 maxSizeSyncRequest = sLoader.loadOneSett(SETT_SYNC_MAX_SIZE_SYNC_REQUEST, myParams.verboseMode).toInt();
+    const qint32 maxCountSyncRequestParallel = sLoader.loadOneSett(SETT_SYNC_MAX_COUNT_SYNQ_RQSTPRLL, myParams.verboseMode).toUInt();
 
-     const qint32 maxYearSave = sLoader.loadOneSett(SETT_SYNC_MAX_YEAR_SAVE).toInt();
-     const qint32 minUniqMacs = sLoader.loadOneSett(SETT_SYNC_MIN_UNIQ_MAC_FILES).toInt();
+     const qint32 maxYearSave = sLoader.loadOneSett(SETT_SYNC_MAX_YEAR_SAVE, myParams.verboseMode).toInt();
+     const qint32 minUniqMacs = sLoader.loadOneSett(SETT_SYNC_MIN_UNIQ_MAC_FILES, myParams.verboseMode).toInt();
 
      emit setSyncParams(workDir, syncMode, maxFileCount, maxSizeMacTable, maxCountSha1LocalFsParallel, maxSizeSyncRequest, maxCountSyncRequestParallel, maxYearSave, minUniqMacs);
 
@@ -137,6 +137,8 @@ void M2MResourceManager::onTmrCreate()
         connect(this, &M2MResourceManager::addEvent2log, this, &M2MResourceManager::addEvent2logSlot);
 
     M2MLocalSocket *extSocket = createLocalSocket(myParams.verboseMode);
+
+    createSharedMemory(myParams.verboseMode);
 
     auto *writer = createSharedMemoryWriter(myParams.verboseMode);
     auto *server = createM2MServer(myParams.verboseMode, writer, extSocket);
@@ -214,6 +216,39 @@ M2MLocalSocket *M2MResourceManager::createLocalSocket(const bool &verboseMode)
 
     return extSocket;
 
+}
+
+//----------------------------------------------------------------------
+
+void M2MResourceManager::createSharedMemory(const bool &verboseMode)
+{
+    QThread *writerthred = new QThread;
+    writerthred->setObjectName("HTTPAppLogs");
+
+    M2MAppLogs *writer = new M2MAppLogs(
+                SharedMemoHelper::defM2MServerAppMemoName(),
+                SharedMemoHelper::defM2MServerAppSemaName(),
+                "", 2222, 60000, verboseMode);
+
+    writer->mymaximums.write2ram = 120;
+    writer->mymaximums.write2file = 250;
+
+    writer->moveToThread(writerthred);
+    connect(writer, SIGNAL(destroyed(QObject*)), writerthred, SLOT(quit()));
+    connect(writerthred, SIGNAL(finished()), writerthred, SLOT(deleteLater()));
+    connect(writerthred, SIGNAL(started()), writer, SLOT(initObjectLtr()));
+
+    connect(this, &M2MResourceManager::killAllObjects, writer, &SharedMemoWriter::flushAllNowAndDie);
+
+//    connect(this, &M2MResourceManager::add2systemLogError, writer, &M2MAppLogs::add2systemLogError);
+    connect(this, &M2MResourceManager::addEvent2log, writer, &M2MAppLogs::add2systemLogEvent);
+//    connect(this, &HTTPResourceManager::add2systemLogWarn , writer, &HTTPAppLogs::add2systemLogWarn);
+
+    connect(this, SIGNAL(goGoGo()), writerthred, SLOT(start()));
+
+
+//    writerthred->start();
+//    return writer;
 }
 
 //----------------------------------------------------------------------

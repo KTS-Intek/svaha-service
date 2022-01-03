@@ -54,8 +54,7 @@ QList<quint16> M2MConnHolderDecoder::getCommand4remDevUCon()
 QString M2MConnHolderDecoder::getRemoteIpAndDescr()
 {
     return QString("%1:%2")
-            .arg(connId.peerAddress)
-            .arg(connId.socketDescriptor);
+            .arg(connId.peerAddress, connId.socketDescriptor);
 }
 
 QStringHash M2MConnHolderDecoder::getObjIfo(const QVariantMap &h, const bool &addVersion)
@@ -381,7 +380,7 @@ QByteArray M2MConnHolderDecoder::getBackupSign(const quint16 &serverPort)
 void M2MConnHolderDecoder::onDoAfter(const quint16 &command)
 {
     ask2closeTheConnection(QString("bad command %1, ip %2, id %3")
-                           .arg(command).arg(connId.peerAddress).arg(connId.socketDescriptor));
+                           .arg(command).arg(connId.peerAddress, connId.socketDescriptor));
 }
 
 void M2MConnHolderDecoder::createZombieTmr(const int &zombieMsec)
@@ -397,6 +396,15 @@ void M2MConnHolderDecoder::createZombieTmr(const int &zombieMsec)
     connect(zombieTmr, &QTimer::timeout, this, &M2MConnHolderDecoder::checkSendZombieCommand);
     connect(this, &M2MConnHolderDecoder::disconnLater, zombieTmr, &QTimer::stop);
     connect(this, SIGNAL(startTmrZombieKiller(int)), zombieTmr, SLOT(start(int)));
+
+
+    QTimer *suicideTmr = new QTimer(this);
+    suicideTmr->setSingleShot(true);
+    suicideTmr->setInterval(33333);
+
+    connect(suicideTmr, &QTimer::timeout, this, &M2MConnHolderDecoder::startSuicide);
+    connect(this, &M2MConnHolderDecoder::onM2MServerAcceptedMe, suicideTmr, &QTimer::stop);
+    connect(this, &M2MConnHolderDecoder::killTemporaryObjects, suicideTmr, &QTimer::deleteLater);
 
 
     restartZombieTmr();
@@ -652,7 +660,7 @@ void M2MConnHolderDecoder::onBackupWorkDirectoryChanged(QString workDir)
 
 void M2MConnHolderDecoder::onEverythingIsConnected()
 {
-    QTimer::singleShot(1, this, SIGNAL(onForceReading()));
+    QTimer::singleShot(111, this, SIGNAL(onForceReading()));
 }
 
 void M2MConnHolderDecoder::setZombieMsec(int msec)
@@ -671,6 +679,9 @@ void M2MConnHolderDecoder::setZombieMsec(int msec)
 
 void M2MConnHolderDecoder::checkSendZombieCommand()
 {
+
+    if(connId.stopAll)
+        return;
 
     if(myZombieKiller.isWaiting4answer){
         ask2closeTheConnectionExt("checkSendZombieCommand no answer ", 11);
@@ -724,11 +735,41 @@ void M2MConnHolderDecoder::fastZombieCheckSmart()
 
 }
 
+//---------------------------------------------------------------------------------------
+
 void M2MConnHolderDecoder::onConnectionIsDown()
 {
     if(!myStateParams.mMac.isEmpty())
-        emit removeMyId2Hash(myStateParams.mMac);
+        emit removeMyId2Hash(myStateParams.mMac, connId.otherId);
     myStateParams.mMac.clear();
+
+}
+
+//---------------------------------------------------------------------------------------
+
+void M2MConnHolderDecoder::startStopSuicideTmr(QString remIpDescr, bool start)
+{
+    if(remIpDescr.isEmpty())
+        return;
+    if(remIpDescr != connId.otherId)
+        return;
+
+    if(start){
+        if(!connId.stopAll)
+            ask2closeTheConnection(tr("M2MServer wants me to die"));
+    }else{
+        emit onM2MServerAcceptedMe();//stop suicide timer
+        QTimer::singleShot(11, this, SIGNAL(killTemporaryObjects()));//kill suicide timer
+    }
+
+}
+
+//---------------------------------------------------------------------------------------
+
+void M2MConnHolderDecoder::startSuicide()
+{
+    if(!connId.stopAll)
+        ask2closeTheConnection(tr("suicide is true"));
 
 }
 

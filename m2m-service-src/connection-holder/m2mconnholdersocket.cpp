@@ -96,6 +96,7 @@ void M2MConnHolderSocket::onTimeoutsChanged(ConnectionTimeouts socketTimeouts)
 
 void M2MConnHolderSocket::onDisconn()
 {
+    decoder->addLine2log("M2MConnHolderSocket::onDisconn");
     onDisconnExt(true);
 
 }
@@ -104,6 +105,7 @@ void M2MConnHolderSocket::onDisconn()
 
 void M2MConnHolderSocket::onDisconnByDecoder()
 {
+    decoder->addLine2log("M2MConnHolderSocket::onDisconnByDecoder");
     onDisconnExt(false);
 
 }
@@ -133,9 +135,7 @@ void M2MConnHolderSocket::createDecoder(const bool &verboseMode)
 
 
 
-    connect(decoder, &M2MConnHolderDecoder::disconnLater, [=](qint64 msec){
-        QTimer::singleShot(msec, this, SLOT(onDisconnByDecoder()));
-    });
+    connect(decoder, &M2MConnHolderDecoder::disconnLater, this, &M2MConnHolderSocket::disconnLater);
 
     connect(this, &M2MConnHolderSocket::setZombieMsec, decoder, &M2MConnHolderDecoder::setZombieMsec);
 
@@ -151,11 +151,31 @@ void M2MConnHolderSocket::createDecoder(const bool &verboseMode)
 //-------------------------------------------------------------------------------------
 
 
+void M2MConnHolderSocket::disconnLater(qint64 msec)
+{
+    disconnect(this, &M2MConnHolderSocket::readyRead, this, &M2MConnHolderSocket::mReadyRead);
+    decoder->addLine2log("M2MConnHolderSocket::disconnLater ");
+    stopAll = true;
+    QTimer::singleShot(msec, this, SLOT(onDisconnByDecoder()));
+
+}
+
+//-------------------------------------------------------------------------------------
+
+
 
 void M2MConnHolderSocket::mReadyRead()
 {
-    //it must be callsed by decoder for the first time, than it will use events
+
+
+    //it must be called by decoder for the first time, than it will use events
     disconnect(this, &M2MConnHolderSocket::readyRead, this, &M2MConnHolderSocket::mReadyRead);
+
+    if(stopAll){
+        onDisconn(); //force to kill
+        return;
+    }
+
     readFunction();
     connect(this, &M2MConnHolderSocket::readyRead, this, &M2MConnHolderSocket::mReadyRead);
 }
@@ -171,7 +191,7 @@ void M2MConnHolderSocket::readFunction()
         return;
 
    if(!decoder->checkStartReading(this, decoder->timeObjectSmpl.elapsed())){
-       return;
+       return;//it must start selfdestroing
    }
 
 

@@ -133,10 +133,14 @@ void M2MConnHolderServerBase::stopAllSlot()
 
 void M2MConnHolderServerBase::setTimeouts(int zombieMsec, int msecAlive, int timeOutGMsec, int timeOutBMsec)
 {
+    if(zombieMsec > 0)
     myParams.socketTimeouts.zombieMsec = zombieMsec;
+    if(msecAlive > 0)
     myParams.socketTimeouts.msecAlive = msecAlive;
 
+    if(timeOutGMsec > 0)
     myParams.socketTimeouts.timeOutGMsec = timeOutGMsec;
+    if(timeOutBMsec > 0)
     myParams.socketTimeouts.timeOutBMsec = timeOutBMsec;
     emit onTimeoutsChanged(myParams.socketTimeouts);
 
@@ -147,7 +151,7 @@ void M2MConnHolderServerBase::setTimeouts(int zombieMsec, int msecAlive, int tim
 void M2MConnHolderServerBase::setBackupWorkDirectory(QString workDir)
 {
     myParams.workDir = workDir;
-    onBackupWorkDirectoryChanged(myParams.workDir);
+    emit onBackupWorkDirectoryChanged(myParams.workDir);
 }
 
 //-----------------------------------------------------------------------------------------
@@ -165,6 +169,11 @@ void M2MConnHolderServerBase::setDataConnectionParams(QString serverDataIP, quin
 
 void M2MConnHolderServerBase::addMyId2Hash(QString objId, QStringList macl, QString remIpDescr, QStringHash hashObjIfo, bool add2sync)
 {
+    if(remIpDescr.isEmpty())
+        return;
+
+    emit addEvent2log(QString("addMyId2Hash %1, %2, %3").arg(remIpDescr, objId, macl.join(" ")));
+
     const QString dt = QDateTime::currentDateTimeUtc().toString("yyyyMMddhhmmss");
     for(int i = 0, iMax = macl.size(); i < iMax; i++){
         const QString mac = macl.at(i);
@@ -183,6 +192,9 @@ void M2MConnHolderServerBase::addMyId2Hash(QString objId, QStringList macl, QStr
     if(add2sync)
         emit onConnectedTheseMacs(macl);
 
+    if(!remIpDescr.isEmpty())
+        emit startStopSuicideTmr(remIpDescr, false);//stop suicide tmr
+
     if(!macl.isEmpty())
         tellThatConnectionTableChanged();
 
@@ -190,12 +202,17 @@ void M2MConnHolderServerBase::addMyId2Hash(QString objId, QStringList macl, QStr
 
 //-----------------------------------------------------------------------------------------
 
-void M2MConnHolderServerBase::removeMyId2Hash(QStringList macList)
+void M2MConnHolderServerBase::removeMyId2Hash(QStringList macl, QString remIpDescr)
 {
-    const int iMax = macList.size();
+    if(!remIpDescr.isEmpty())
+        emit startStopSuicideTmr(remIpDescr, true);//start suicide tmr
+
+    emit addEvent2log(QString("removeMyId2Hash %1, %2").arg(remIpDescr, macl.join(" ")));
+
+    const int iMax = macl.size();
     for(int i = 0; i < iMax; i++){
 
-        const QString mac = macList.at(i);
+        const QString mac = macl.at(i);
         if(myParams.verboseMode)
             qDebug() << "removeMyId2Hash" << mac << myTable.hashMacDevId.value(mac) << myTable.hashMacRemoteId.value(mac) << myTable.hashMacAddTime.value(mac);
 
@@ -211,7 +228,7 @@ void M2MConnHolderServerBase::removeMyId2Hash(QStringList macList)
 
 
     }
-    emit onDisconnectedTheseMacs(macList, iMax);
+    emit onDisconnectedTheseMacs(macl, iMax);
 
     tellThatConnectionTableChanged();
 
@@ -274,6 +291,7 @@ void M2MConnHolderServerBase::onThisDecoderReadyBase(M2MConnHolderDecoder *decod
 
         connect(decoder, &M2MConnHolderDecoder::addError2Log, this, &M2MConnHolderServerBase::addEvent2log);
 
+        connect(this, &M2MConnHolderServerBase::startStopSuicideTmr, decoder, &M2MConnHolderDecoder::startStopSuicideTmr);
 
 
         decoder->onDataConnectionParamsChanged(myParams.serverDataIP, myParams.serverDataStart, myParams.serverDataEnd);

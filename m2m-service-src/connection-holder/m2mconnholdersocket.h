@@ -72,6 +72,8 @@ public slots:
 
     void createDecoder(const bool &verboseMode);
 
+    void disconnLater(qint64 msec);
+
 private slots:
     void mReadyRead();
 

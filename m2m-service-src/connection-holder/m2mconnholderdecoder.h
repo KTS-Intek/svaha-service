@@ -154,7 +154,7 @@ signals:
 //to M2M service
     void addMyId2Hash(QString objId, QStringList macl, QString remIpDescr, QStringHash hashObjIfo, bool add2sync);//id mac <remote ip>:<descr>
 
-    void removeMyId2Hash(QStringList idMacList);//id is mac
+    void removeMyId2Hash(QStringList idMacList, QString remIpDescr);//id is mac
 
     void removeThisIpFromTemporaryBlockList(QString ip);
 
@@ -171,6 +171,12 @@ signals:
 
 
     void startTmrZombieKiller(int msec);
+
+
+    void onM2MServerAcceptedMe();
+
+    void killTemporaryObjects();
+
 
 public slots:
     //from the connection holder server
@@ -235,6 +241,10 @@ public slots:
 
     //connection is down
     void onConnectionIsDown();
+
+    void startStopSuicideTmr(QString remIpDescr, bool start);
+
+    void startSuicide();
 
 
 };

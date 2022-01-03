@@ -173,7 +173,7 @@ void M2MBackupSocket::readFunction()
     quint16 serverCommand = COMMAND_ZULU;
     quint32 blockSize;
     const QVariant readVar = ReadWriteIODevice::readIODevice(this,
-                                                             socketTimeouts.timeOutBMsec, socketTimeouts.timeOutGMsec,
+                                                             socketTimeouts.timeOutBMsec, decoder->lastObjSett.verboseMode, socketTimeouts.timeOutGMsec,
                                                              hasErr, hasMoreData, serverCommand, blockSize);
     emit restartTimeObject();
 

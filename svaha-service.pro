@@ -73,6 +73,7 @@ SOURCES += main.cpp \
     m2m-service-src/data-transmission/m2mbackupsocket.cpp \
     m2m-service-src/data-transmission/m2mdatasocket.cpp \
     m2m-service-src/data-transmission/m2mserverfortwo.cpp \
+    m2m-service-src/main/m2mapplogs.cpp \
     m2m-service-src/main/m2mglobalmethods.cpp \
     m2m-service-src/main/m2mlocalsocket.cpp \
     m2m-service-src/main/m2mresourcemanager.cpp \
@@ -93,6 +94,7 @@ HEADERS += \
     m2m-service-src/data-transmission/m2mbackupsocket.h \
     m2m-service-src/data-transmission/m2mdatasocket.h \
     m2m-service-src/data-transmission/m2mserverfortwo.h \
+    m2m-service-src/main/m2mapplogs.h \
     m2m-service-src/main/m2mglobalmethods.h \
     m2m-service-src/main/m2mlocalsocket.h \
     m2m-service-src/main/m2mresourcemanager.h \

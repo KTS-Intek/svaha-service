@@ -97,6 +97,7 @@ signals:
     void onResourBusy(QString socketId);
 
 
+    void startStopSuicideTmr(QString remIpDescr, bool start);
 
 
     //to connection holder sockets
@@ -153,7 +154,7 @@ public slots:
     //from connection decoder
     void addMyId2Hash(QString objId, QStringList macl, QString remIpDescr, QStringHash hashObjIfo, bool add2sync);//id mac <remote ip>:<descr>
 
-    void removeMyId2Hash(QStringList macList);//id mac <remote ip>:<descr>
+    void removeMyId2Hash(QStringList macl, QString remIpDescr);//id mac <remote ip>:<descr>
 
     void setInfoAboutObj(QStringList macL, QStringHash objIfo, int counter);
 

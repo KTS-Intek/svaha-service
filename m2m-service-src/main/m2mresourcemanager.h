@@ -8,8 +8,7 @@
 #include "m2m-service-src/backup/m2mbackupmanager.h"
 #include "m2m-service-src/main/m2msharedmemorywriter.h"
 #include "m2m-service-src/main/m2mlocalsocket.h"
-
-
+#include "m2m-service-src/main/m2mapplogs.h"
 
 //it creates all necessary objects
 
@@ -82,6 +81,8 @@ public slots:
 
 private:
     M2MLocalSocket *createLocalSocket(const bool &verboseMode);
+
+    void createSharedMemory(const bool &verboseMode);
 
     M2MSharedMemoryWriter *createSharedMemoryWriter(const bool &verboseMode);
 
