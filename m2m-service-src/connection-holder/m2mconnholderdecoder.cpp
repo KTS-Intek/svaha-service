@@ -485,12 +485,18 @@ void M2MConnHolderDecoder::onResourBusy(QString socketId)
 
 void M2MConnHolderDecoder::checkThisMac(QString mac)
 {
-    if(connId.stopAll)
-        return;
 
-    if(myStateParams.connectedDevType == REM_DEV_MATILDA_DEV && myStateParams.mMac.contains(mac, Qt::CaseInsensitive)){
+
+    if(myStateParams.connectedDevType == REM_DEV_MATILDA_DEV && myStateParams.mMac.contains(mac)){
         //        emit addMyId2Hash(mIden, QStringList() << mac, myRemoteIpAndDescr);
-        ask2closeTheConnection(QString("checkThisMac"));
+
+        if(connId.stopAll){
+            addLine2log(QString("checkThisMac stopped %1 %2").arg(connId.otherId, mac));
+
+            return;
+        }
+
+        ask2closeTheConnection(QString("checkThisMac %1 %2").arg(connId.otherId, mac));
     }
 
 
@@ -684,7 +690,7 @@ void M2MConnHolderDecoder::checkSendZombieCommand()
 {
 
     if(connId.stopAll){
-        addLine2log(tr("checkSendZombieCommand"));
+        addLine2log(tr("checkSendZombieCommand is stopped"));
 //        emit disconnLater(1);//ASAP
         emit closeTheConnection();
         return;

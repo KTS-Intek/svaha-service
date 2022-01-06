@@ -149,7 +149,7 @@ void M2MBackupServer::onDieAfterSync()
 void M2MBackupServer::killTheConnection(QString message)
 {
     if(myParams.verboseMode)
-        qDebug() << "M2MBackupServer killTheConnection message " ;
+        qDebug() << "M2MBackupServer killTheConnection message " << message ;
     myParams.connCounter = -1;
     close();
     emit stopAllNow();
