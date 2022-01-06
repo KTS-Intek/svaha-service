@@ -175,7 +175,7 @@ void M2MConnHolderServer::incomingConnection(qintptr handle)
         if(myParams.verboseMode)
             qDebug() << "incomingConnection ignore this ip " << strIP;
 
-        socket->onDisconn();
+        socket->onDisconnIp();
         emit addEvent2log(QString("M2MConnHolderServer in.c. %1, sd:%2, Access denied!").arg(strIP).arg(handle));
         return;
     }
@@ -201,7 +201,7 @@ void M2MConnHolderServer::incomingConnection(qintptr handle)
     connect(socket, &M2MConnHolderSocket::onThisDecoderReady, this, &M2MConnHolderServer::onThisDecoderReady);
     connect(this, &M2MConnHolderServer::onTimeoutsChanged               , socket, &M2MConnHolderSocket::onTimeoutsChanged);
 
-    connect(this, &M2MConnHolderServer::killAllClinets, socket, &M2MConnHolderSocket::onDisconn);
+    connect(this, &M2MConnHolderServer::killAllClinets, socket, &M2MConnHolderSocket::onDisconnKillAll);
 
     socket->onTimeoutsChanged(myParams.socketTimeouts);
 

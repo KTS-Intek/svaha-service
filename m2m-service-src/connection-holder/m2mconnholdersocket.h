@@ -63,8 +63,19 @@ public slots:
     void onTimeoutsChanged(ConnectionTimeouts socketTimeouts);
 
 
+    void onDisconnKillAll();
 
     void onDisconn();
+
+    void onDisconnIp();
+
+
+    void onConnectionDown();
+
+    void onConnectionOld();
+
+
+    void killConnecion(QString message);
 
     void onDisconnByDecoder();
 

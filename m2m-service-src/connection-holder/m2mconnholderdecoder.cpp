@@ -303,6 +303,8 @@ FunctionRezultJSON M2MConnHolderDecoder::onCOMMAND_CHECK_BACKUP_FILE_HASH_SUMM(c
 
         if(svahaPort != 0){
 
+            addLine2log(tr("Configuration has changed, backup process is starting..."));
+
             //            if(myStateParams.connectedDevType == REM_DEV_MATILDA_DEV){
             QJsonObject jObj;//створити з'єднання в режимі вивантаження резервної копії
             jObj.insert("sIp", myStateParams.serverDataIP);// serverServiceIP);
@@ -317,6 +319,7 @@ FunctionRezultJSON M2MConnHolderDecoder::onCOMMAND_CHECK_BACKUP_FILE_HASH_SUMM(c
         }
     }
     //конфігурація залишилась без змін,
+    addLine2log(tr("Configuration is the same"));
     emit onSyncRequestRemoteSha1isEqual(myStateParams.macL4backupManager);
     myStateParams.dtLastBackupCheck = QDateTime::currentDateTimeUtc();
 
@@ -680,8 +683,12 @@ void M2MConnHolderDecoder::setZombieMsec(int msec)
 void M2MConnHolderDecoder::checkSendZombieCommand()
 {
 
-    if(connId.stopAll)
+    if(connId.stopAll){
+        addLine2log(tr("checkSendZombieCommand"));
+//        emit disconnLater(1);//ASAP
+        emit closeTheConnection();
         return;
+    }
 
     if(myZombieKiller.isWaiting4answer){
         ask2closeTheConnectionExt("checkSendZombieCommand no answer ", 11);

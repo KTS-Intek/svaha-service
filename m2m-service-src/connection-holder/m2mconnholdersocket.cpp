@@ -90,15 +90,44 @@ void M2MConnHolderSocket::onTimeoutsChanged(ConnectionTimeouts socketTimeouts)
 
 }
 
+void M2MConnHolderSocket::onDisconnKillAll()
+{
+    killConnecion("M2MConnHolderSocket::onDisconnKillAll");
+
+}
+
 
 
 //-------------------------------------------------------------------------------------
 
 void M2MConnHolderSocket::onDisconn()
 {
-    decoder->addLine2log("M2MConnHolderSocket::onDisconn");
-    onDisconnExt(true);
+   killConnecion("M2MConnHolderSocket::onDisconn");
 
+}
+
+void M2MConnHolderSocket::onDisconnIp()
+{
+    killConnecion("M2MConnHolderSocket::onDisconnIp");
+
+}
+
+void M2MConnHolderSocket::onConnectionDown()
+{
+    killConnecion("M2MConnHolderSocket::onConnectionDown");
+
+}
+
+void M2MConnHolderSocket::onConnectionOld()
+{
+    killConnecion("M2MConnHolderSocket::onConnectionOld");
+
+}
+
+void M2MConnHolderSocket::killConnecion(QString message)
+{
+    decoder->addLine2log(message);
+    onDisconnExt(true);
 }
 
 //-------------------------------------------------------------------------------------
@@ -115,6 +144,17 @@ void M2MConnHolderSocket::onDisconnByDecoder()
 void M2MConnHolderSocket::onDisconnExt(const bool &allowdecoder)
 {
     Q_UNUSED(allowdecoder)
+
+    if(socketTimeouts.msecAlive == 1){
+        decoder->addLine2log("M2MConnHolderSocket::onDisconnExt, I'm already kicking off");
+        return;
+    }
+    socketTimeouts.msecAlive = 1;
+
+    decoder->addLine2log("M2MConnHolderSocket::onDisconnExt, I'm kicking off");
+
+
+    disconnectFromHost();
     close();
     deleteLater();
 }
@@ -154,7 +194,7 @@ void M2MConnHolderSocket::createDecoder(const bool &verboseMode)
 void M2MConnHolderSocket::disconnLater(qint64 msec)
 {
     disconnect(this, &M2MConnHolderSocket::readyRead, this, &M2MConnHolderSocket::mReadyRead);
-    decoder->addLine2log("M2MConnHolderSocket::disconnLater ");
+    decoder->addLine2log(tr("M2MConnHolderSocket::disconnLater msec=%1").arg(msec));
     stopAll = true;
     QTimer::singleShot(msec, this, SLOT(onDisconnByDecoder()));
 
@@ -172,7 +212,8 @@ void M2MConnHolderSocket::mReadyRead()
     disconnect(this, &M2MConnHolderSocket::readyRead, this, &M2MConnHolderSocket::mReadyRead);
 
     if(stopAll){
-        onDisconn(); //force to kill
+        killConnecion("M2MConnHolderSocket::mReadyRead");
+//        onDisconn(); //force to kill
         return;
     }
 
@@ -222,7 +263,8 @@ void M2MConnHolderSocket::readFunction()
     }
 
 //only JSON mode
-    onDisconn();
+//    onDisconn();
+    killConnecion("M2MConnHolderSocket::readFunction");
     return;
 
 }
@@ -254,13 +296,13 @@ void M2MConnHolderSocket::onThreadStartedExt(const bool &verboseMode)
 
     emit onThisDecoderReady(decoder);
 
-    connect(this, &M2MConnHolderSocket::disconnected, this, &M2MConnHolderSocket::onDisconn);
+    connect(this, &M2MConnHolderSocket::disconnected, this, &M2MConnHolderSocket::onConnectionDown);
     if(state() == QAbstractSocket::ConnectedState ){
-        QTimer::singleShot(socketTimeouts.msecAlive, this, SLOT(onDisconn()));//SETT_TIME_2_LIVE
+        QTimer::singleShot(socketTimeouts.msecAlive, this, SLOT(onConnectionOld()));//SETT_TIME_2_LIVE
         return;
     }
 
-    QTimer::singleShot(11, this, SLOT(onDisconn()));
+    QTimer::singleShot(11, this, SLOT(onConnectionDown()));
 
 
 }
