@@ -230,8 +230,8 @@ void M2MResourceManager::createSharedMemory(const bool &verboseMode)
                 SharedMemoHelper::defM2MServerAppSemaName(),
                 "", 2222, 60000, verboseMode);
 
-    writer->mymaximums.write2ram = 120;
-    writer->mymaximums.write2file = 250;
+    writer->mymaximums.write2ram = 250;
+    writer->mymaximums.write2file = 500;
 
     writer->moveToThread(writerthred);
     connect(writer, SIGNAL(destroyed(QObject*)), writerthred, SLOT(quit()));

@@ -31,7 +31,7 @@
 M2MConnHolderServer::M2MConnHolderServer(const bool &verboseMode, QObject *parent)
     : M2MConnHolderServerBase(verboseMode, parent)
 {
-
+    setMaxPendingConnections(5);//it helps with ddos
 }
 
 //----------------------------------------------------------------------------------------------------
@@ -174,9 +174,10 @@ void M2MConnHolderServer::incomingConnection(qintptr handle)
             accesManager->isIPblockedByTheTemporaryBlockList(strIP)){
         if(myParams.verboseMode)
             qDebug() << "incomingConnection ignore this ip " << strIP;
-
+        accesManager->checkDDOS();
         socket->onDisconnIp();
-        emit addEvent2log(QString("M2MConnHolderServer in.c. %1, sd:%2, Access denied!").arg(strIP).arg(handle));
+        if(!accesManager->isDDOSDetected())
+            emit addEvent2log(QString("M2MConnHolderServer in.c. %1, sd:%2, Access denied!").arg(strIP).arg(handle));
         return;
     }
     accesManager->addThisIPToTempraryBlockListQuiet(strIP);

@@ -51,6 +51,8 @@ signals:
 
     void setZombieMsec(int msec);
 
+    void addLine2log(QString message);
+
 
 public slots:
     void onThreadStartedVerb();

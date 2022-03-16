@@ -10,9 +10,11 @@
 //-------------------------------------------------------------------------------------
 
 M2MSharedMemoryWriter::M2MSharedMemoryWriter(const QString &sharedMemoName, const QString &semaName, const bool &verboseMode, QObject *parent)
-    : SharedMemoWriter(sharedMemoName, semaName, "", 1111, 66666, verboseMode,  parent)
+    : SharedMemoWriter(sharedMemoName, semaName, "", 2222, 66666, verboseMode,  parent)
 {
-
+    //it must be ddos safe
+    this->mymaximums.write2ram = 250;
+    this->mymaximums.write2file = 500;
 }
 
 //-------------------------------------------------------------------------------------

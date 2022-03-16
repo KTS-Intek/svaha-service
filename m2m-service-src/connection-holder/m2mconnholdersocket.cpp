@@ -108,8 +108,8 @@ void M2MConnHolderSocket::onDisconn()
 
 void M2MConnHolderSocket::onDisconnIp()
 {
+    //this message is never shown, because decoder at this moment is not created
     killConnecion("M2MConnHolderSocket::onDisconnIp");
-
 }
 
 void M2MConnHolderSocket::onConnectionDown()
@@ -126,7 +126,7 @@ void M2MConnHolderSocket::onConnectionOld()
 
 void M2MConnHolderSocket::killConnecion(QString message)
 {
-    decoder->addLine2log(message);
+    emit addLine2log(message);
     onDisconnExt(true);
 }
 
@@ -134,7 +134,7 @@ void M2MConnHolderSocket::killConnecion(QString message)
 
 void M2MConnHolderSocket::onDisconnByDecoder()
 {
-    decoder->addLine2log("M2MConnHolderSocket::onDisconnByDecoder");
+    emit addLine2log("M2MConnHolderSocket::onDisconnByDecoder");
     onDisconnExt(false);
 
 }
@@ -146,12 +146,12 @@ void M2MConnHolderSocket::onDisconnExt(const bool &allowdecoder)
     Q_UNUSED(allowdecoder)
 
     if(socketTimeouts.msecAlive == 1){
-        decoder->addLine2log("M2MConnHolderSocket::onDisconnExt, I'm already kicking off");
+        emit addLine2log("M2MConnHolderSocket::onDisconnExt, I'm already kicking off");
         return;
     }
     socketTimeouts.msecAlive = 1;
 
-    decoder->addLine2log("M2MConnHolderSocket::onDisconnExt, I'm kicking off");
+    emit addLine2log("M2MConnHolderSocket::onDisconnExt, I'm kicking off");
 
 
     disconnectFromHost();
@@ -183,6 +183,8 @@ void M2MConnHolderSocket::createDecoder(const bool &verboseMode)
 
     decoder->createZombieTmr(socketTimeouts.zombieMsec);
 
+    connect(this, &M2MConnHolderSocket::addLine2log, decoder, &M2MConnHolderDecoder::addLine2log);
+
 
 
 
@@ -194,7 +196,7 @@ void M2MConnHolderSocket::createDecoder(const bool &verboseMode)
 void M2MConnHolderSocket::disconnLater(qint64 msec)
 {
     disconnect(this, &M2MConnHolderSocket::readyRead, this, &M2MConnHolderSocket::mReadyRead);
-    decoder->addLine2log(tr("M2MConnHolderSocket::disconnLater msec=%1").arg(msec));
+    emit addLine2log(tr("M2MConnHolderSocket::disconnLater msec=%1").arg(msec));
     stopAll = true;
     QTimer::singleShot(msec, this, SLOT(onDisconnByDecoder()));
 
