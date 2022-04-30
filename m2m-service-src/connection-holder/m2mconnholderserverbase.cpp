@@ -118,6 +118,19 @@ QStringList M2MConnHolderServerBase::getDevicesWithThisMAC(const QString &macUpp
 
 }
 
+//-----------------------------------------------------------------------------------------
+
+bool M2MConnHolderServerBase::canAllowOneMoreSocket()
+{
+    if(myTable.connectionCounter < myParams.connectionLimit){
+        myTable.connectionCounter++;
+        return true;
+    }
+    return false;
+}
+
+//-----------------------------------------------------------------------------------------
+
 void M2MConnHolderServerBase::stopAllSlot()
 {
     if(isListening())
@@ -300,6 +313,22 @@ void M2MConnHolderServerBase::onThisDecoderReadyBase(M2MConnHolderDecoder *decod
 
     }
 
+}
+
+void M2MConnHolderServerBase::setConnectionLimit(int connectionLimit)
+{
+    if(connectionLimit < 10)
+        connectionLimit = 10;
+    else if(connectionLimit > 10000)
+        connectionLimit = 10000;
+    myParams.connectionLimit = connectionLimit;
+}
+
+void M2MConnHolderServerBase::onSocketDied()
+{
+    myTable.connectionCounter--;
+    if(myTable.connectionCounter < 0)
+        myTable.connectionCounter = 0;
 }
 
 

@@ -77,6 +77,13 @@ void M2MConnHolderServer::setServicePortSmart(quint16 port)
 
 }
 
+void M2MConnHolderServer::setServicePortAndLimitsSmart(quint16 port, int connectionLimit)
+{
+    setServicePortSmart(port);
+    setConnectionLimit(connectionLimit);
+
+}
+
 
 //----------------------------------------------------------------------------------------------------
 
@@ -166,23 +173,30 @@ void M2MConnHolderServer::incomingConnection(qintptr handle)
         return;
     }
 
+
     const QString strIP = NetworkConvertHelper::showNormalIP(socket->peerAddress());// lsender.at(i));
 
+    accesManager->checkDDOS();
 
     if(accesManager->isIPblockedByTheAllowList(strIP) ||
             accesManager->isIPblockedByTheBlockList(strIP) ||
             accesManager->isIPblockedByTheTemporaryBlockList(strIP)){
         if(myParams.verboseMode)
             qDebug() << "incomingConnection ignore this ip " << strIP;
-        accesManager->checkDDOS();
         socket->onDisconnIp();
         if(!accesManager->isDDOSDetected())
             emit addEvent2log(QString("M2MConnHolderServer in.c. %1, sd:%2, Access denied!").arg(strIP).arg(handle));
         return;
     }
+
+    if(!canAllowOneMoreSocket()){
+        socket->onDisconnIp();//connection limit
+        return;
+    }
+
     accesManager->addThisIPToTempraryBlockListQuiet(strIP);
 
-    emit addEvent2log(QString("in.c. %1 %2").arg(strIP, QString::number(handle)));
+    emit addEvent2log(QString("in.c. %1 %2, c=%3").arg(strIP, QString::number(handle), QString::number(myTable.connectionCounter)));
 
     QThread *thread = new QThread(this);
     thread->setObjectName(QString("%1/%2").arg(strIP, QString::number(handle)));
@@ -206,6 +220,7 @@ void M2MConnHolderServer::incomingConnection(qintptr handle)
 
     socket->onTimeoutsChanged(myParams.socketTimeouts);
 
+    connect(socket, SIGNAL(destroyed(QObject*)), this, SLOT(onSocketDied())) ;
 
     thread->start();
 

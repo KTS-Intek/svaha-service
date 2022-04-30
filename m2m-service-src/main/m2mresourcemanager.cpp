@@ -61,11 +61,12 @@ void M2MResourceManager::reloadSettings()
         const int zombieMsec = sLoader.loadOneSett(SETT_ZOMBIE_MSEC, myParams.verboseMode).toInt();// 15 * 60 * 1000 );
         const int killTmrMsec = sLoader.loadOneSett(SETT_TIME_2_LIVE, myParams.verboseMode).toInt();// 24 * 60 * 60 * 1000);
 
+        const int maxConn = sLoader.loadOneSett(SETT_SVAHA_MAXIMUM_PENDING_CONN, myParams.verboseMode).toInt();// 24 * 60 * 60 * 1000);
         sendGlobalSettings(zombieMsec, killTmrMsec);
 
         const quint16 m2mServiceConnHolderPort = quint16(sLoader.loadOneSett(SETT_SVAHA_SERVICE_PORT, myParams.verboseMode).toUInt());
 
-        emit setServicePortSmart(m2mServiceConnHolderPort);
+        emit setServicePortAndLimitsSmart(m2mServiceConnHolderPort, maxConn);
     }
 
 
@@ -308,7 +309,7 @@ M2MConnHolderServer *M2MResourceManager::createM2MServer(const bool &verboseMode
     connect(this, &M2MResourceManager::setBackupWorkDirectory, server, &M2MConnHolderServer::setBackupWorkDirectory);
     connect(this, &M2MResourceManager::setDataConnectionParams, server, &M2MConnHolderServer::setDataConnectionParams);
 
-    connect(this, &M2MResourceManager::setServicePortSmart, server, &M2MConnHolderServer::setServicePortSmart);
+    connect(this, &M2MResourceManager::setServicePortAndLimitsSmart, server, &M2MConnHolderServer::setServicePortAndLimitsSmart);
 
     connect(this, &M2MResourceManager::setAllowAndBlockList, server, &M2MConnHolderServer::setAllowAndBlockList);
 

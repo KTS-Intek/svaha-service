@@ -61,6 +61,7 @@ public slots:
     void try2startServer();
 
     void setServicePortSmart(quint16 port);
+    void setServicePortAndLimitsSmart(quint16 port, int connectionLimit);
 
 
     void connMe2ThisIdOrMac(QString macOrId, bool isMac, QString myRemoteId, QString rIp);//mac or id, isMacMode, socket id

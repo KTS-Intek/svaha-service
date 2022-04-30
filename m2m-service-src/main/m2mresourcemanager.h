@@ -54,7 +54,7 @@ signals:
 
     void setDataConnectionParams(QString serverDataIP, quint16 minDataPort, quint16 maxDataPort);
 
-    void setServicePortSmart(quint16 port);
+    void setServicePortAndLimitsSmart(quint16 port, int connectionLimit);
 
     void setAllowAndBlockList(QStringList allowIpList, QStringList blockThisIp);
 

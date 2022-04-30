@@ -44,6 +44,8 @@ public:
         bool verboseMode;
         quint16 port;
 
+        qint32 connectionLimit;
+
         ConnectionTimeouts socketTimeouts;//socketcache
 
         QString workDir; //backup workDir
@@ -54,7 +56,7 @@ public:
         quint16 serverDataStart; //50000
         quint16 serverDataEnd; //60000
 
-        ConnHolderServerParams() {}
+        ConnHolderServerParams() : connectionLimit(1000) {}
     } myParams;
 
 
@@ -65,7 +67,9 @@ public:
         QStringHash hashMacAddTime;
         QStringHashHash hashMac2objectIfo;
 
-        ConnHolderServerTable() {}
+        qint32 connectionCounter;
+
+        ConnHolderServerTable() : connectionCounter(0) {}
     } myTable;
 
     static void makeCustomTypeRegistration();
@@ -76,6 +80,7 @@ public:
 
     QStringList getDevicesWithThisMAC(const QString &macUpper);//mac , socket id
 
+    bool canAllowOneMoreSocket();
 
 signals:
 
@@ -171,7 +176,9 @@ public slots:
 
     void onThisDecoderReadyBase(M2MConnHolderDecoder *decoder);
 
+    void setConnectionLimit(int connectionLimit);
 
+    void onSocketDied();
 };
 
 #endif // M2MCONNHOLDERSERVERBASE_H

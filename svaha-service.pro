@@ -9,7 +9,7 @@ CONFIG -= app_bundle
 TEMPLATE = app
 
 
-VERSION = 0.0.2
+VERSION = 0.0.3
 
 #DEFINES += APPLCTN_NAME=\\\"quick-collect\\\" it is only for GUI
 DEFINES += "MYAPPNAME=\"\\\"svaha-service\\\"\""
